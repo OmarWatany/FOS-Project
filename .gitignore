@@ -1,4 +1,4 @@
 /bochs.log
 obj/
-.settings/
-.settings
+'.settings'/
+.settings/language.settings.xml
