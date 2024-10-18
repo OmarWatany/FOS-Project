@@ -34,6 +34,7 @@ extern uint32 NUM_OF_COMMANDS ;
 //=================================================================//
 // Declaration of functions that implement command prompt commands.//
 //=================================================================//
+int learn();
 int command_help(int , char **);
 int command_kernel_info(int , char **);
 

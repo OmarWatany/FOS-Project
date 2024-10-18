@@ -103,8 +103,34 @@ void initialize_dynamic_allocator(uint32 daStart, uint32 initSizeOfAllocatedSpac
 
 	//TODO: [PROJECT'24.MS1 - #04] [3] DYNAMIC ALLOCATOR - initialize_dynamic_allocator
 	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	panic("initialize_dynamic_allocator is not implemented yet");
+	//panic("initialize_dynamic_allocator is not implemented yet");
 	//Your Code is Here...
+	struct member{
+		int number;
+		char ca;
+		LIST_ENTRY(member) prev_next_info;
+	};
+	LIST_HEAD(awal,member);
+
+	struct awal awal_wahed;
+
+	LIST_INIT(&awal_wahed);
+
+	struct member *felnos=LIST_FIRST(&awal_wahed);
+	felnos->number=1;
+
+	cprintf("f %d ahooooooo\n", felnos->number);
+	if(LIST_EMPTY(&awal_wahed))			/* check whether list is empty */
+		cprintf("list at first is empty\n");
+	else cprintf("is not empty\n");
+
+	for(felnos=LIST_FIRST(&awal_wahed); felnos != 0; felnos = LIST_NEXT(felnos))
+		cprintf("f %d\n", felnos->number);
+	if(LIST_EMPTY(&awal_wahed))			/* check whether list is empty */
+		cprintf("list is empty\n");
+	else cprintf("is not empty\n");
+	int size =LIST_SIZE(&awal_wahed);
+	cprintf("The number is: %d", size);  // Correct: use format specifier for integer
 
 }
 //==================================

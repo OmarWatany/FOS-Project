@@ -26,6 +26,7 @@ struct Command commands[] =
 		//*******************************//
 		/* COMMANDS WITH ZERO ARGUMENTS */
 		//*******************************//
+		{ "learn","learnning", learn,0},
 		{ "help", "Display this list of commands", command_help, 0 },
 		{ "kernel_info", "Display information about the kernel", command_kernel_info, 0 },
 		{ "meminfo", "display info about RAM", command_meminfo, 0},
@@ -92,6 +93,37 @@ uint32 NUM_OF_COMMANDS  = (sizeof(commands)/sizeof(struct Command));
 
 
 /***** Implementations of basic kernel command prompt commands *****/
+struct member{
+		int number;
+		char ca;
+		LIST_ENTRY(member) prev_next_info;
+	};
+LIST_HEAD(awal,member);
+
+int learn()
+{
+	struct awal awal_wahed;
+	LIST_INIT(&awal_wahed);
+	struct member felnos={
+		.number=1
+	};
+	struct member *p1=&felnos;
+	LIST_INSERT_HEAD(&awal_wahed,p1);
+
+	cprintf("size is %d\n",LIST_SIZE(&awal_wahed));
+	struct member last;
+	last.number=5;
+	struct member *p=&last;
+
+	LIST_INSERT_TAIL(&awal_wahed,p);
+	int size =LIST_SIZE(&awal_wahed);
+	cprintf("size is %d\n",LIST_SIZE(&awal_wahed));
+
+	for(struct member *felno=LIST_FIRST(&awal_wahed); felno; felno = LIST_NEXT(felno))
+		cprintf("f %d\n", felno->number);
+	return 0;
+}
+
 
 //print name and description of each command
 int command_help(int number_of_arguments, char **arguments)
