@@ -201,10 +201,40 @@ void *alloc_block_BF(uint32 size)
 //===================================================
 void free_block(void *va)
 {
-	//TODO: [PROJECT'24.MS1 - #07] [3] DYNAMIC ALLOCATOR - free_block
-	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	panic("free_block is not implemented yet");
-	//Your Code is Here...
+	if(va==NULL)
+	{
+		return;
+	}
+
+	int blockSize=*(int *)(va);
+	set_block_data(va+sizeof(int),blockSize,0);
+	struct BlockElement * vaNew=(struct BlockElement *) va;
+	if(vaNew< LIST_FIRST(&freeBlocksList)) // if the block is before the current first block
+	{
+		LIST_INSERT_HEAD(&freeBlocksList,vaNew);
+	}
+	else if(vaNew> LIST_LAST(&freeBlocksList)) // if the block is after the current last block
+	{
+		LIST_INSERT_TAIL(&freeBlocksList,vaNew);
+	}
+	else //the block is in the middle
+	{
+		int *prevFooter = (int *)((char *)va- sizeof(int));
+		if( *prevFooter % 2 == 0)
+		{
+			int *prevHeader=prevFooter-*prevFooter+sizeof(int);
+			set_block_data(prevHeader+1,blockSize+*prevFooter,0);
+			va=prevHeader;
+			blockSize+=*prevFooter;
+		}
+
+		int *nextHeader= (int *)((char *)va + blockSize + sizeof(int));
+		if( *nextHeader % 2 == 0)
+		{
+			set_block_data(va+1,blockSize+*nextHeader,0);
+		}
+
+	}
 }
 
 //=========================================
