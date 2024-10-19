@@ -119,7 +119,7 @@ void set_block_data(void* va, uint32 totalSize, bool isAllocated)
 	else{
 		*headerPointer=totalSize;
 	}
-	int *footerPointer=(va+totalSize-8); // because the totalSize includes the header and the footer which are both 4 bytes
+	int *footerPointer=(va+totalSize-2*sizeof(int)); // because the totalSize includes the header and the footer which are both 4 bytes
 	*footerPointer=*headerPointer;
 }
 
@@ -148,10 +148,41 @@ void *alloc_block_FF(uint32 size)
 	//==================================================================================
 
 	//TODO: [PROJECT'24.MS1 - #06] [3] DYNAMIC ALLOCATOR - alloc_block_FF
-	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	panic("alloc_block_FF is not implemented yet");
-	//Your Code is Here...
+	if(!size) //if requested size is 0 , return NULL
+	{
+		return NULL;
+	}
+	struct BlockElement *iter;
+	int freeBlockSize;
+	int totalSize=size+2*sizeof(int);
+	LIST_FOREACH(iter,&freeBlocksList)
+	{
+		int *pp = (int *)((char *)iter - sizeof(int));
+		freeBlockSize=*pp;
+		//header = iter-1 , because the iter points to the address of the next pointer
+		if(freeBlockSize>=totalSize)
+		{
 
+			if(freeBlockSize-totalSize<DYN_ALLOC_MIN_BLOCK_SIZE) // it will take the entire block and we will have internal fragmentation
+			{
+				set_block_data(iter,freeBlockSize,1); // alloc the first block that we needed
+				return iter;
+			}
+			else // we will split it into 2 blocks
+			{
+				set_block_data(iter,totalSize,1); // alloc the first block that we needed
+				set_block_data((iter+totalSize-2*sizeof(int)),freeBlockSize-totalSize,0);
+				return iter;
+			}
+		}
+	}
+	void *p=sbrk(totalSize/4);
+	if(p)
+	{
+	set_block_data(p,totalSize,1); // not sure should I divide or not, I did because I think that's the page size
+	}
+
+	return p;
 }
 //=========================================
 // [4] ALLOCATE BLOCK BY BEST FIT:
