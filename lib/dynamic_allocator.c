@@ -101,25 +101,28 @@ void initialize_dynamic_allocator(uint32 daStart, uint32 initSizeOfAllocatedSpac
 	//==================================================================================
 	//==================================================================================
 
-	//TODO: [PROJECT'24.MS1 - #04] [3] DYNAMIC ALLOCATOR - initialize_dynamic_allocator
-	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	panic("initialize_dynamic_allocator is not implemented yet");
-	//Your Code is Here...
+	int *BegBlock= (int *) daStart;
+	int *EndBlock=(int *)(daStart+initSizeOfAllocatedSpace-sizeof(int));
+	*BegBlock=*EndBlock=1;
 
+	set_block_data(BegBlock+2,initSizeOfAllocatedSpace-2*sizeof(int),0);
+
+	struct BlockElement * firstBlock=(struct BlockElement *) (daStart+2*sizeof(int));
+	LIST_INSERT_HEAD(&freeBlocksList,firstBlock);
 }
 //==================================
 // [2] SET BLOCK HEADER & FOOTER:
 //==================================
 void set_block_data(void* va, uint32 totalSize, bool isAllocated)
 {
-	int *headerPointer=(va-1);
+	int *headerPointer=va -sizeof(int);
 	if(isAllocated){
 	*headerPointer=totalSize+1; //if it allocated , then the LSB should be 1, so we just add 1 here and subtract it when we read
 	}
 	else{
 		*headerPointer=totalSize;
 	}
-	int *footerPointer=(va+totalSize-2*sizeof(int)); // because the totalSize includes the header and the footer which are both 4 bytes
+	int *footerPointer=va + totalSize- 2*sizeof(int);// because the totalSize includes the header and the footer which are both 4 bytes
 	*footerPointer=*headerPointer;
 }
 
