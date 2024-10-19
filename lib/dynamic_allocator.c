@@ -112,10 +112,15 @@ void initialize_dynamic_allocator(uint32 daStart, uint32 initSizeOfAllocatedSpac
 //==================================
 void set_block_data(void* va, uint32 totalSize, bool isAllocated)
 {
-	//TODO: [PROJECT'24.MS1 - #05] [3] DYNAMIC ALLOCATOR - set_block_data
-	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	panic("set_block_data is not implemented yet");
-	//Your Code is Here...
+	int *headerPointer=(va-1);
+	if(isAllocated){
+	*headerPointer=totalSize+1; //if it allocated , then the LSB should be 1, so we just add 1 here and subtract it when we read
+	}
+	else{
+		*headerPointer=totalSize;
+	}
+	int *footerPointer=(va+totalSize-8); // because the totalSize includes the header and the footer which are both 4 bytes
+	*footerPointer=*headerPointer;
 }
 
 
