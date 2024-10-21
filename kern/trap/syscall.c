@@ -301,6 +301,11 @@ int sys_pf_calculate_allocated_pages(void)
 /*******************************/
 void sys_free_user_mem(uint32 virtual_address, uint32 size)
 {
+	uint32 va = virtual_address + size;
+	if( virtual_address == 0 || va == 0 || va >= USER_HEAP_MAX || va < USER_HEAP_START ){
+		env_exit();
+		return ;
+	}
 	if(isBufferingEnabled())
 	{
 		__free_user_mem_with_buffering(cur_env, virtual_address, size);
@@ -314,9 +319,12 @@ void sys_free_user_mem(uint32 virtual_address, uint32 size)
 
 void sys_allocate_user_mem(uint32 virtual_address, uint32 size)
 {
+	uint32 va = virtual_address + size;
 	//TODO: [PROJECT'24.MS1 - #03] [2] SYSTEM CALLS - Params Validation
-
-	allocate_user_mem(cur_env, virtual_address, size);
+	if( virtual_address == 0 || va == 0 || va >= USER_HEAP_MAX || va < USER_HEAP_START ){
+		env_exit();
+	} else
+		allocate_user_mem(cur_env, virtual_address, size);
 	return;
 }
 
@@ -674,6 +682,7 @@ uint32 syscall(uint32 syscallno, uint32 a1, uint32 a2, uint32 a3, uint32 a4, uin
 	case SYS_sbrk:
 		return (uint32)sys_sbrk(a1);
 		return  0;
+
 	case SYS_allocate_user_mem:
 		sys_allocate_user_mem((int)a1, (int)a2);
 		return  0;
