@@ -2,3 +2,5 @@
 obj/
 '.settings'/
 .settings/language.settings.xml
+.clang-format
+bochsrun.bat
