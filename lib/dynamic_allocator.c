@@ -252,32 +252,85 @@ void free_block(void *va)
 		return;
 	}
 
-	int blockSize=*(int *)(va);
-	set_block_data(va+sizeof(int),blockSize,0);
+	int blockSize=*(int *)((int *) va - 1);
+	set_block_data(va,blockSize,0);
 	struct BlockElement * vaNew=(struct BlockElement *) va;
-	if(vaNew< LIST_FIRST(&freeBlocksList)) // if the block is before the current first block
+	if(vaNew < LIST_FIRST(&freeBlocksList)) // if the block is before the current first block
 	{
-		LIST_INSERT_HEAD(&freeBlocksList,vaNew);
+		cprintf("bagarab1");
+		int *nextHeader= (int *)((char *)va + blockSize - sizeof(int));
+		if( *nextHeader % 2 == 0)
+		{
+			vaNew->prev_next_info.le_next=((struct BlockElement *) (nextHeader+ 1))->prev_next_info.le_next;
+			vaNew->prev_next_info.le_next->prev_next_info.le_prev=vaNew->prev_next_info.le_prev;//not sure
+			set_block_data(va,blockSize+*nextHeader,0);
+
+		}
+		else {
+		vaNew->prev_next_info.le_next=LIST_FIRST(&freeBlocksList);
+		LIST_FIRST(&freeBlocksList)=vaNew;
+		vaNew->prev_next_info.le_next->prev_next_info.le_prev=vaNew->prev_next_info.le_prev;//not sure
+		vaNew->prev_next_info.le_prev=NULL;
+		}
 	}
-	else if(vaNew> LIST_LAST(&freeBlocksList)) // if the block is after the current last block
+	else if(vaNew > LIST_LAST(&freeBlocksList)) // if the block is after the current last block
 	{
-		LIST_INSERT_TAIL(&freeBlocksList,vaNew);
+		cprintf("bagarab2");
+
+		int *prevFooter = (int *)((char *)va- 2*sizeof(int));
+		if( *prevFooter % 2 == 0)
+		{
+			set_block_data(prevFooter-*prevFooter+2*sizeof(int),*prevFooter+blockSize,0);
+			va=prevFooter-*prevFooter+sizeof(int); //prevHeader
+			blockSize+=*prevFooter;
+		}
+		else {
+			vaNew->prev_next_info.le_prev=LIST_LAST(&freeBlocksList)->prev_next_info.le_prev;//not sure
+			LIST_LAST(&freeBlocksList)=vaNew;
+			vaNew->prev_next_info.le_prev->prev_next_info.le_next=vaNew;
+			vaNew->prev_next_info.le_next=NULL;
+		}
 	}
 	else //the block is in the middle
 	{
+		cprintf("bagarab3\n");
+		struct BlockElement *iter;
 		int *prevFooter = (int *)((char *)va- sizeof(int));
-		if( *prevFooter % 2 == 0)
-		{
-			int *prevHeader=prevFooter-*prevFooter+sizeof(int);
-			set_block_data(prevHeader+1,blockSize+*prevFooter,0);
-			va=prevHeader;
-			blockSize+=*prevFooter;
-		}
+		int *nextHeader= (int *)((char *)va + blockSize - sizeof(int));
+		if( *prevFooter % 2 == 0 || *nextHeader % 2 == 0){
+			if( *prevFooter % 2 == 0)
+			{
+				cprintf("bagarab4\n");
+				set_block_data((int*)((char*)prevFooter-*prevFooter+sizeof(int)),*prevFooter+blockSize,0);
+				va=(int*)((char*)prevFooter-*prevFooter); //prevHeader
+				blockSize+=*prevFooter;
+			}
+			vaNew=(struct BlockElement *) va;
+			if( *nextHeader % 2 == 0 && *nextHeader >0)
+			{
+				cprintf("bagarab5\n");
+				vaNew->prev_next_info.le_next=((struct BlockElement *) (nextHeader+ 1))->prev_next_info.le_next;
+				cprintf("check\n");
+				set_block_data(va,blockSize+*nextHeader,0);
 
-		int *nextHeader= (int *)((char *)va + blockSize + sizeof(int));
-		if( *nextHeader % 2 == 0)
+			}
+		}
+		else
 		{
-			set_block_data(va+1,blockSize+*nextHeader,0);
+			cprintf("bagarab6\n");
+			LIST_FOREACH(iter,&freeBlocksList)
+			{
+				if(vaNew > iter && vaNew < iter->prev_next_info.le_next)
+				{
+					vaNew->prev_next_info.le_next=iter->prev_next_info.le_next;
+					vaNew->prev_next_info.le_prev=iter->prev_next_info.le_prev; //not sure
+
+					iter->prev_next_info.le_next=vaNew;
+					vaNew->prev_next_info.le_next->prev_next_info.le_prev=vaNew->prev_next_info.le_prev; //not sure
+				}
+
+
+			}
 		}
 
 	}
