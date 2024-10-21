@@ -101,6 +101,7 @@ void initialize_dynamic_allocator(uint32 daStart, uint32 initSizeOfAllocatedSpac
 	//==================================================================================
 	//==================================================================================
 
+	LIST_INIT(&freeBlocksList);
 	int *BegBlock= (int *) daStart;
 	int *EndBlock=(int *)(daStart+initSizeOfAllocatedSpace-sizeof(int));
 	*BegBlock=*EndBlock=1;
@@ -115,14 +116,14 @@ void initialize_dynamic_allocator(uint32 daStart, uint32 initSizeOfAllocatedSpac
 //==================================
 void set_block_data(void* va, uint32 totalSize, bool isAllocated)
 {
-	int *headerPointer=va -sizeof(int);
+	int *headerPointer=(int *) (va) -1;
 	if(isAllocated){
 	*headerPointer=totalSize+1; //if it allocated , then the LSB should be 1, so we just add 1 here and subtract it when we read
 	}
 	else{
 		*headerPointer=totalSize;
 	}
-	int *footerPointer=va + totalSize- 2*sizeof(int);// because the totalSize includes the header and the footer which are both 4 bytes
+	int *footerPointer=(int *)((int)headerPointer+ totalSize-sizeof(int));// because the totalSize includes the header and the footer which are both 4 bytes
 	*footerPointer=*headerPointer;
 }
 
@@ -150,7 +151,6 @@ void *alloc_block_FF(uint32 size)
 	//==================================================================================
 	//==================================================================================
 
-	//TODO: [PROJECT'24.MS1 - #06] [3] DYNAMIC ALLOCATOR - alloc_block_FF
 	if(!size) //if requested size is 0 , return NULL
 	{
 		return NULL;
@@ -160,32 +160,75 @@ void *alloc_block_FF(uint32 size)
 	int totalSize=size+2*sizeof(int);
 	LIST_FOREACH(iter,&freeBlocksList)
 	{
-		int *pp = (int *)((char *)iter - sizeof(int));
-		freeBlockSize=*pp;
-		//header = iter-1 , because the iter points to the address of the next pointer
-		if(freeBlockSize>=totalSize)
+		freeBlockSize=*(int *)((int *) iter - 1);
+				if(freeBlockSize>=totalSize)
 		{
-
 			if(freeBlockSize-totalSize<DYN_ALLOC_MIN_BLOCK_SIZE) // it will take the entire block and we will have internal fragmentation
 			{
-				set_block_data(iter,freeBlockSize,1); // alloc the first block that we needed
+				set_block_data(iter,freeBlockSize,1);
+				 // if its the first element
+				if(LIST_FIRST(&freeBlocksList)==iter)
+				{
+					LIST_FIRST(&freeBlocksList)=iter->prev_next_info.le_next;
+					if(iter->prev_next_info.le_next){
+					iter->prev_next_info.le_next->prev_next_info.le_prev=NULL;
+					}
+				}
+				//if its the last element
+				else if(LIST_LAST(&freeBlocksList)==iter)
+				{
+					LIST_LAST(&freeBlocksList)=iter->prev_next_info.le_prev;
+					iter->prev_next_info.le_prev->prev_next_info.le_next=NULL;
+				}
+				//if its in the middle
+				else
+				{
+					iter->prev_next_info.le_prev->prev_next_info.le_next=iter->prev_next_info.le_next;
+					iter->prev_next_info.le_next->prev_next_info.le_prev=iter->prev_next_info.le_prev;
+				}
 				return iter;
 			}
 			else // we will split it into 2 blocks
 			{
 				set_block_data(iter,totalSize,1); // alloc the first block that we needed
-				set_block_data((iter+totalSize-2*sizeof(int)),freeBlockSize-totalSize,0);
+				struct BlockElement* newFreeBlock=(struct BlockElement*)((char *)iter+ totalSize);
+				set_block_data((int *)((char *)iter+ totalSize),freeBlockSize-totalSize,0);
+				if(LIST_FIRST(&freeBlocksList)==iter && LIST_LAST(&freeBlocksList)==iter)
+				{
+
+					LIST_INSERT_HEAD(&freeBlocksList,newFreeBlock);
+					LIST_INSERT_TAIL(&freeBlocksList,newFreeBlock);
+					newFreeBlock->prev_next_info.le_next=NULL;
+					newFreeBlock->prev_next_info.le_prev=NULL;
+				}
+				else if(LIST_FIRST(&freeBlocksList)==iter)
+				{
+					LIST_FIRST(&freeBlocksList)=newFreeBlock;
+					iter->prev_next_info.le_next->prev_next_info.le_prev=(struct BlockElement*)((int*)newFreeBlock+1);
+					newFreeBlock->prev_next_info.le_next=iter->prev_next_info.le_next;
+					newFreeBlock->prev_next_info.le_prev=NULL;
+				}
+				//if its the last element
+				else if(LIST_LAST(&freeBlocksList)==iter)
+				{
+					LIST_LAST(&freeBlocksList)=newFreeBlock;
+					iter->prev_next_info.le_prev->prev_next_info.le_next=newFreeBlock;
+					newFreeBlock->prev_next_info.le_next=NULL;
+					newFreeBlock->prev_next_info.le_prev=iter->prev_next_info.le_prev;
+				}
+				//if its in the middle
+				else
+				{
+					iter->prev_next_info.le_prev->prev_next_info.le_next=newFreeBlock;
+					iter->prev_next_info.le_next->prev_next_info.le_prev=newFreeBlock;
+					newFreeBlock->prev_next_info.le_next=iter->prev_next_info.le_next;
+					newFreeBlock->prev_next_info.le_prev=iter->prev_next_info.le_prev;
+				}
 				return iter;
 			}
 		}
 	}
-	void *p=sbrk(totalSize/4);
-	if(p)
-	{
-	set_block_data(p,totalSize,1); // not sure should I divide or not, I did because I think that's the page size
-	}
-
-	return p;
+	return NULL;
 }
 //=========================================
 // [4] ALLOCATE BLOCK BY BEST FIT:
