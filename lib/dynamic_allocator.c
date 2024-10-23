@@ -171,40 +171,14 @@ void *alloc_block_FF(uint32 size)
 	LIST_FOREACH(iter,&freeBlocksList)
 	{
 		freeBlockSize = get_block_size(iter);
+		cprintf("freeblockSize : %u , totalSize :%u\n", freeBlockSize,totalSize);
 		if(freeBlockSize>=totalSize)
 		{
-			if(freeBlockSize-totalSize<DYN_ALLOC_MIN_BLOCK_SIZE) // it will take the entire block and we will have internal fragmentation
+			if(freeBlockSize-totalSize<16) // it will take the entire block and we will have internal fragmentation
 			{
 				cprintf(" fragmentation \n");
 				set_block_data(iter,freeBlockSize,1);
-				if(LIST_FIRST(&freeBlocksList)==iter && LIST_LAST(&freeBlocksList)==iter ) // if its the first element
-				{
-					cprintf(" list size = 1 \n");
-					LIST_INIT(&freeBlocksList);
-					/* LIST_REMOVE(&freeBlocksList,LIST_FIRST(&freeBlocksList)); */
-					/* LIST_INSERT_HEAD(&freeBlocksList,LIST_NEXT(iter)); */
-				}
-				else if(LIST_FIRST(&freeBlocksList)==iter) // if its the first element
-				{
-					cprintf(" first element \n");
-					LIST_REMOVE(&freeBlocksList,LIST_FIRST(&freeBlocksList));
-					LIST_INSERT_HEAD(&freeBlocksList,LIST_NEXT(iter));
-				}
-				//if its the last element
-				else if(LIST_LAST(&freeBlocksList)==iter)
-				{
-					cprintf(" last element \n");
-					LIST_REMOVE(&freeBlocksList,LIST_LAST(&freeBlocksList));
-					LIST_INSERT_TAIL(&freeBlocksList,LIST_PREV(iter));
-				}
-				//if its in the middle
-				else
-				{
-					cprintf(" middle element \n");
-					LIST_NEXT(LIST_PREV(iter)) = LIST_NEXT(iter);
-					LIST_PREV(LIST_NEXT(iter)) = LIST_PREV(iter);
-				}
-				cprintf(" done \n");
+				LIST_REMOVE(&freeBlocksList,iter);
 				return iter;
 			}
 			else // we will split it into 2 blocks
@@ -272,99 +246,61 @@ void free_block(void *va)
 	}
 
 	uint32 blockSize=get_block_size(va);
-	cprintf("blockSize %u \n",blockSize);
 	set_block_data(va,blockSize,0); // set not allocated
 	struct BlockElement * vaNew=(struct BlockElement *) va;
-	if(vaNew == NULL) cprintf("AHA\n");
-	if(vaNew < LIST_FIRST(&freeBlocksList)) // if the block is before the current first block
+	if(LIST_EMPTY(&freeBlocksList))
 	{
-		cprintf("bagarab1");
-		uint32 *nextHeader= NHDR(va);
-		if( *nextHeader % 2 == 0)
+		LIST_INSERT_HEAD(&freeBlocksList,vaNew);
+		return;
+	}
+	bool f=0;
+	struct BlockElement *iter;
+	LIST_FOREACH(iter,&freeBlocksList)
+	{
+		if(vaNew < iter)
 		{
-			LIST_NEXT(vaNew) = LIST_NEXT(NBLK(vaNew));
-			LIST_PREV(LIST_NEXT(vaNew)) = LIST_PREV(vaNew);
-			/* vaNew->prev_next_info.le_next=((struct BlockElement *) (nextHeader+ 1))->prev_next_info.le_next; */
-			/* vaNew->prev_next_info.le_next->prev_next_info.le_prev=vaNew->prev_next_info.le_prev;//not sure */
-			set_block_data(va,blockSize+get_block_size(NBLK(va)),0);
-
-		}
-		else {
-			vaNew->prev_next_info.le_next=LIST_FIRST(&freeBlocksList);
-			LIST_FIRST(&freeBlocksList)=vaNew;
-			vaNew->prev_next_info.le_next->prev_next_info.le_prev=vaNew->prev_next_info.le_prev;//not sure
-			vaNew->prev_next_info.le_prev=NULL;
+			LIST_INSERT_BEFORE(&freeBlocksList,iter,vaNew);
+			f=1;
+			break;
 		}
 	}
-	else if(vaNew > LIST_LAST(&freeBlocksList)) // if the block is after the current last block
+	if(!f)
 	{
-		cprintf("after last free block\n");
-		uint32 *prevFooter = PFTR(vaNew);
-		if( *prevFooter % 2 == 0)
-		{
-			cprintf("pftr free \n");
-			set_block_data(VAFTR(prevFooter),*prevFooter+blockSize,0);
-			vaNew=VAFTR(prevFooter);
-			blockSize+=*prevFooter;
-		}
-		else {
-			cprintf("pftr not free \n");
-			if(vaNew == NULL) cprintf("AHA\n");
-			if(LIST_LAST(&freeBlocksList) != NULL)
-				LIST_REMOVE(&freeBlocksList,LIST_LAST(&freeBlocksList));
-			LIST_INSERT_TAIL(&freeBlocksList,vaNew);
-
-			/* LIST_PREV(vaNew) = LIST_PREV(LIST_LAST(&freeBlocksList)); */
-			/* vaNew->prev_next_info.le_prev=LIST_LAST(&freeBlocksList)->prev_next_info.le_prev;//not sure */
-			/* LIST_LAST(&freeBlocksList)=vaNew; */
-			/* LIST_NEXT(LIST_PREV(vaNew)) = vaNew; */
-			/* LIST_NEXT(vaNew) = NULL; */
-		}
-		cprintf("done after last free block\n");
+		LIST_INSERT_TAIL(&freeBlocksList,vaNew);
 	}
-	else //the block is in the middle
+	if(*(PFTR(vaNew)) % 2 == 0 && *(PFTR(vaNew))>0)
 	{
-		cprintf("bagarab3\n");
-		struct BlockElement *iter;
-		uint32 *prevFooter = (uint32 *)((char *)va- sizeof(uint32));
-		uint32 *nextHeader= (uint32 *)((char *)va + blockSize - sizeof(uint32));
-		if( *prevFooter % 2 == 0 || *nextHeader % 2 == 0){
-			if( *prevFooter % 2 == 0)
-			{
-				cprintf("bagarab4\n");
-				set_block_data((uint32*)((char*)prevFooter-*prevFooter+sizeof(uint32)),*prevFooter+blockSize,0);
-				va=(uint32*)((char*)prevFooter-*prevFooter); //prevHeader
-				blockSize+=*prevFooter;
-			}
-			vaNew=(struct BlockElement *) va;
-			if( *nextHeader % 2 == 0 && *nextHeader >0)
-			{
-				cprintf("bagarab5\n");
-				vaNew->prev_next_info.le_next=((struct BlockElement *) (nextHeader+ 1))->prev_next_info.le_next;
-				cprintf("check\n");
-				set_block_data(va,blockSize+*nextHeader,0);
-
-			}
-		}
-		else
-		{
-			cprintf("bagarab6\n");
-			LIST_FOREACH(iter,&freeBlocksList)
-			{
-				if(vaNew > iter && vaNew < iter->prev_next_info.le_next)
-				{
-					vaNew->prev_next_info.le_next=iter->prev_next_info.le_next;
-					vaNew->prev_next_info.le_prev=iter->prev_next_info.le_prev; //not sure
-
-					iter->prev_next_info.le_next=vaNew;
-					vaNew->prev_next_info.le_next->prev_next_info.le_prev=vaNew->prev_next_info.le_prev; //not sure
-				}
-
-
-			}
-		}
-
+		cprintf("size before merge: %u , size after merge: %u\n",blockSize,blockSize+*(PFTR(vaNew)));
+		blockSize+= *(PFTR(vaNew));
+		cprintf("1\n");
+		set_block_data((struct BlockElement *)((char*)(vaNew)-*(PFTR(vaNew))),blockSize,0);
+		cprintf("2\n");
+		LIST_REMOVE(&freeBlocksList,vaNew);
+		cprintf("3\n");
+		vaNew=(struct BlockElement *)((char*)(vaNew)-*(PFTR(vaNew)));
 	}
+	if(*(NHDR(vaNew)) % 2 == 0 && *(NHDR(vaNew))>0)
+		{
+			cprintf("4\n");
+			blockSize+= *(NHDR(vaNew));
+			cprintf("5\n");
+			set_block_data(vaNew,blockSize,0);
+			cprintf("6\n");
+//			LIST_REMOVE(&freeBlocksList,(struct BlockElement *)((char*)(vaNew)+*(NHDR(vaNew))));
+//			if(LIST_NEXT(vaNew)){
+//				LIST_REMOVE(&freeBlocksList,LIST_NEXT(vaNew));
+//cprintf("ff");
+//			}
+			if(LIST_NEXT(LIST_NEXT(vaNew)))
+			{
+				LIST_NEXT(vaNew)=LIST_NEXT(LIST_NEXT(vaNew));
+			}
+			else
+			{
+				LIST_NEXT(vaNew)=0;
+			}
+			cprintf("7\n");
+		}
 }
 
 //=========================================
