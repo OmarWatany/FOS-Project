@@ -31,6 +31,15 @@ __inline__ int8 is_free_block(void* va)
 	return (~(*curBlkMetaData) & 0x1) ;
 }
 
+/* #define PBLK(va) 					 () */
+#define HDR(va) 					 ((uint32 *)((void *)(va) - sizeof(uint32)))
+#define FTR(va)  					 ((uint32 *)((void *)(va) + get_block_size((va)) - sizeof(uint32)))
+#define PFTR(va)					 ((uint32 *)((void *)HDR((va)) - sizeof(uint32)))
+#define NBLK(va) 					 ((struct BlockElement *)((void *)(va) + get_block_size((va))))
+#define NHDR(va)					 (HDR(NBLK((va))))
+#define VAFTR(ftr) 				 ((struct BlockElement *)((void *)(ftr) - (*(ftr) - (~(*(ftr)) & 0x1)) + 2 * sizeof(uint32)))// *ftr - 0||1
+#define VAHDR(hdr) 				 ((struct BlockElement *)((void *)(hdr) + sizeof(uint32)))
+
 //===========================
 // 3) ALLOCATE BLOCK:
 //===========================
@@ -102,8 +111,8 @@ void initialize_dynamic_allocator(uint32 daStart, uint32 initSizeOfAllocatedSpac
 	//==================================================================================
 
 	LIST_INIT(&freeBlocksList);
-	int *BegBlock= (int *) daStart;
-	int *EndBlock=(int *)(daStart+initSizeOfAllocatedSpace-sizeof(int));
+	uint32 *BegBlock= (uint32 *) daStart;
+	uint32 *EndBlock=(uint32 *)(daStart+initSizeOfAllocatedSpace-sizeof(int));
 	*BegBlock=*EndBlock=1;
 
 	set_block_data(BegBlock+2,initSizeOfAllocatedSpace-2*sizeof(int),0);
@@ -116,16 +125,17 @@ void initialize_dynamic_allocator(uint32 daStart, uint32 initSizeOfAllocatedSpac
 //==================================
 void set_block_data(void* va, uint32 totalSize, bool isAllocated)
 {
-	int *headerPointer=(int *) (va) -1;
+	uint32 *headerPointer= HDR(va);
 	if(isAllocated){
-	*headerPointer=totalSize+1; //if it allocated , then the LSB should be 1, so we just add 1 here and subtract it when we read
+		*headerPointer=totalSize+1; //if it allocated , then the LSB should be 1, so we just add 1 here and subtract it when we read
 	}
 	else{
 		*headerPointer=totalSize;
 	}
-	int *footerPointer=(int *)((int)headerPointer+ totalSize-sizeof(int));// because the totalSize includes the header and the footer which are both 4 bytes
+	uint32 *footerPointer= (uint32 *)((void *)headerPointer + totalSize - sizeof(int));
 	*footerPointer=*headerPointer;
 }
+
 
 
 //=========================================
@@ -156,73 +166,80 @@ void *alloc_block_FF(uint32 size)
 		return NULL;
 	}
 	struct BlockElement *iter;
-	int freeBlockSize;
-	int totalSize=size+2*sizeof(int);
+	uint32 freeBlockSize;
+	uint32 totalSize=size+2*sizeof(uint32);
 	LIST_FOREACH(iter,&freeBlocksList)
 	{
-		freeBlockSize=*(int *)((int *) iter - 1);
-				if(freeBlockSize>=totalSize)
+		freeBlockSize = get_block_size(iter);
+		if(freeBlockSize>=totalSize)
 		{
 			if(freeBlockSize-totalSize<DYN_ALLOC_MIN_BLOCK_SIZE) // it will take the entire block and we will have internal fragmentation
 			{
+				cprintf(" fragmentation \n");
 				set_block_data(iter,freeBlockSize,1);
-				 // if its the first element
-				if(LIST_FIRST(&freeBlocksList)==iter)
+				if(LIST_FIRST(&freeBlocksList)==iter && LIST_LAST(&freeBlocksList)==iter ) // if its the first element
 				{
-					LIST_FIRST(&freeBlocksList)=iter->prev_next_info.le_next;
-					if(iter->prev_next_info.le_next){
-					iter->prev_next_info.le_next->prev_next_info.le_prev=NULL;
-					}
+					cprintf(" list size = 1 \n");
+					LIST_INIT(&freeBlocksList);
+					/* LIST_REMOVE(&freeBlocksList,LIST_FIRST(&freeBlocksList)); */
+					/* LIST_INSERT_HEAD(&freeBlocksList,LIST_NEXT(iter)); */
+				}
+				else if(LIST_FIRST(&freeBlocksList)==iter) // if its the first element
+				{
+					cprintf(" first element \n");
+					LIST_REMOVE(&freeBlocksList,LIST_FIRST(&freeBlocksList));
+					LIST_INSERT_HEAD(&freeBlocksList,LIST_NEXT(iter));
 				}
 				//if its the last element
 				else if(LIST_LAST(&freeBlocksList)==iter)
 				{
-					LIST_LAST(&freeBlocksList)=iter->prev_next_info.le_prev;
-					iter->prev_next_info.le_prev->prev_next_info.le_next=NULL;
+					cprintf(" last element \n");
+					LIST_REMOVE(&freeBlocksList,LIST_LAST(&freeBlocksList));
+					LIST_INSERT_TAIL(&freeBlocksList,LIST_PREV(iter));
 				}
 				//if its in the middle
 				else
 				{
-					iter->prev_next_info.le_prev->prev_next_info.le_next=iter->prev_next_info.le_next;
-					iter->prev_next_info.le_next->prev_next_info.le_prev=iter->prev_next_info.le_prev;
+					cprintf(" middle element \n");
+					LIST_NEXT(LIST_PREV(iter)) = LIST_NEXT(iter);
+					LIST_PREV(LIST_NEXT(iter)) = LIST_PREV(iter);
 				}
+				cprintf(" done \n");
 				return iter;
 			}
 			else // we will split it into 2 blocks
 			{
+				cprintf(" split into two \n");
 				set_block_data(iter,totalSize,1); // alloc the first block that we needed
-				struct BlockElement* newFreeBlock=(struct BlockElement*)((char *)iter+ totalSize);
-				set_block_data((int *)((char *)iter+ totalSize),freeBlockSize-totalSize,0);
-				if(LIST_FIRST(&freeBlocksList)==iter && LIST_LAST(&freeBlocksList)==iter)
+				struct BlockElement* newFreeBlock= (struct BlockElement*)((char *)iter + totalSize);
+				set_block_data(newFreeBlock,freeBlockSize-totalSize,0);
+				if(LIST_FIRST(&freeBlocksList)==iter && LIST_LAST(&freeBlocksList)==iter) // if list size = 1
 				{
-
+					cprintf(" list size == 1 \n");
+					LIST_INIT(&freeBlocksList);
 					LIST_INSERT_HEAD(&freeBlocksList,newFreeBlock);
-					LIST_INSERT_TAIL(&freeBlocksList,newFreeBlock);
-					newFreeBlock->prev_next_info.le_next=NULL;
-					newFreeBlock->prev_next_info.le_prev=NULL;
 				}
 				else if(LIST_FIRST(&freeBlocksList)==iter)
 				{
-					LIST_FIRST(&freeBlocksList)=newFreeBlock;
-					iter->prev_next_info.le_next->prev_next_info.le_prev=(struct BlockElement*)((int*)newFreeBlock+1);
-					newFreeBlock->prev_next_info.le_next=iter->prev_next_info.le_next;
-					newFreeBlock->prev_next_info.le_prev=NULL;
+					cprintf(" the first element \n");
+					LIST_REMOVE(&freeBlocksList,LIST_FIRST(&freeBlocksList));
+					LIST_INSERT_HEAD(&freeBlocksList,newFreeBlock);
 				}
 				//if its the last element
 				else if(LIST_LAST(&freeBlocksList)==iter)
 				{
-					LIST_LAST(&freeBlocksList)=newFreeBlock;
-					iter->prev_next_info.le_prev->prev_next_info.le_next=newFreeBlock;
-					newFreeBlock->prev_next_info.le_next=NULL;
-					newFreeBlock->prev_next_info.le_prev=iter->prev_next_info.le_prev;
+					cprintf(" the last element \n");
+					LIST_REMOVE(&freeBlocksList,LIST_LAST(&freeBlocksList));
+					LIST_INSERT_TAIL(&freeBlocksList,newFreeBlock);
 				}
 				//if its in the middle
 				else
 				{
-					iter->prev_next_info.le_prev->prev_next_info.le_next=newFreeBlock;
-					iter->prev_next_info.le_next->prev_next_info.le_prev=newFreeBlock;
-					newFreeBlock->prev_next_info.le_next=iter->prev_next_info.le_next;
-					newFreeBlock->prev_next_info.le_prev=iter->prev_next_info.le_prev;
+					cprintf(" alloc in the middle \n");
+					LIST_NEXT(LIST_PREV(iter)) = newFreeBlock;
+					LIST_PREV(LIST_NEXT(iter)) = newFreeBlock;
+					LIST_NEXT(newFreeBlock) = LIST_NEXT(iter);
+					LIST_PREV(newFreeBlock) = LIST_PREV(iter);
 				}
 				return iter;
 			}
@@ -230,6 +247,7 @@ void *alloc_block_FF(uint32 size)
 	}
 	return NULL;
 }
+
 //=========================================
 // [4] ALLOCATE BLOCK BY BEST FIT:
 //=========================================
@@ -247,62 +265,75 @@ void *alloc_block_BF(uint32 size)
 //===================================================
 void free_block(void *va)
 {
+	cprintf("inside free \n");
 	if(va==NULL)
 	{
 		return;
 	}
 
-	int blockSize=*(int *)((int *) va - 1);
-	set_block_data(va,blockSize,0);
+	uint32 blockSize=get_block_size(va);
+	cprintf("blockSize %u \n",blockSize);
+	set_block_data(va,blockSize,0); // set not allocated
 	struct BlockElement * vaNew=(struct BlockElement *) va;
+	if(vaNew == NULL) cprintf("AHA\n");
 	if(vaNew < LIST_FIRST(&freeBlocksList)) // if the block is before the current first block
 	{
 		cprintf("bagarab1");
-		int *nextHeader= (int *)((char *)va + blockSize - sizeof(int));
+		uint32 *nextHeader= NHDR(va);
 		if( *nextHeader % 2 == 0)
 		{
-			vaNew->prev_next_info.le_next=((struct BlockElement *) (nextHeader+ 1))->prev_next_info.le_next;
-			vaNew->prev_next_info.le_next->prev_next_info.le_prev=vaNew->prev_next_info.le_prev;//not sure
-			set_block_data(va,blockSize+*nextHeader,0);
+			LIST_NEXT(vaNew) = LIST_NEXT(NBLK(vaNew));
+			LIST_PREV(LIST_NEXT(vaNew)) = LIST_PREV(vaNew);
+			/* vaNew->prev_next_info.le_next=((struct BlockElement *) (nextHeader+ 1))->prev_next_info.le_next; */
+			/* vaNew->prev_next_info.le_next->prev_next_info.le_prev=vaNew->prev_next_info.le_prev;//not sure */
+			set_block_data(va,blockSize+get_block_size(NBLK(va)),0);
 
 		}
 		else {
-		vaNew->prev_next_info.le_next=LIST_FIRST(&freeBlocksList);
-		LIST_FIRST(&freeBlocksList)=vaNew;
-		vaNew->prev_next_info.le_next->prev_next_info.le_prev=vaNew->prev_next_info.le_prev;//not sure
-		vaNew->prev_next_info.le_prev=NULL;
+			vaNew->prev_next_info.le_next=LIST_FIRST(&freeBlocksList);
+			LIST_FIRST(&freeBlocksList)=vaNew;
+			vaNew->prev_next_info.le_next->prev_next_info.le_prev=vaNew->prev_next_info.le_prev;//not sure
+			vaNew->prev_next_info.le_prev=NULL;
 		}
 	}
 	else if(vaNew > LIST_LAST(&freeBlocksList)) // if the block is after the current last block
 	{
-		cprintf("bagarab2");
-
-		int *prevFooter = (int *)((char *)va- 2*sizeof(int));
+		cprintf("after last free block\n");
+		uint32 *prevFooter = PFTR(vaNew);
 		if( *prevFooter % 2 == 0)
 		{
-			set_block_data(prevFooter-*prevFooter+2*sizeof(int),*prevFooter+blockSize,0);
-			va=prevFooter-*prevFooter+sizeof(int); //prevHeader
+			cprintf("pftr free \n");
+			set_block_data(VAFTR(prevFooter),*prevFooter+blockSize,0);
+			vaNew=VAFTR(prevFooter);
 			blockSize+=*prevFooter;
 		}
 		else {
-			vaNew->prev_next_info.le_prev=LIST_LAST(&freeBlocksList)->prev_next_info.le_prev;//not sure
-			LIST_LAST(&freeBlocksList)=vaNew;
-			vaNew->prev_next_info.le_prev->prev_next_info.le_next=vaNew;
-			vaNew->prev_next_info.le_next=NULL;
+			cprintf("pftr not free \n");
+			if(vaNew == NULL) cprintf("AHA\n");
+			if(LIST_LAST(&freeBlocksList) != NULL)
+				LIST_REMOVE(&freeBlocksList,LIST_LAST(&freeBlocksList));
+			LIST_INSERT_TAIL(&freeBlocksList,vaNew);
+
+			/* LIST_PREV(vaNew) = LIST_PREV(LIST_LAST(&freeBlocksList)); */
+			/* vaNew->prev_next_info.le_prev=LIST_LAST(&freeBlocksList)->prev_next_info.le_prev;//not sure */
+			/* LIST_LAST(&freeBlocksList)=vaNew; */
+			/* LIST_NEXT(LIST_PREV(vaNew)) = vaNew; */
+			/* LIST_NEXT(vaNew) = NULL; */
 		}
+		cprintf("done after last free block\n");
 	}
 	else //the block is in the middle
 	{
 		cprintf("bagarab3\n");
 		struct BlockElement *iter;
-		int *prevFooter = (int *)((char *)va- sizeof(int));
-		int *nextHeader= (int *)((char *)va + blockSize - sizeof(int));
+		uint32 *prevFooter = (uint32 *)((char *)va- sizeof(uint32));
+		uint32 *nextHeader= (uint32 *)((char *)va + blockSize - sizeof(uint32));
 		if( *prevFooter % 2 == 0 || *nextHeader % 2 == 0){
 			if( *prevFooter % 2 == 0)
 			{
 				cprintf("bagarab4\n");
-				set_block_data((int*)((char*)prevFooter-*prevFooter+sizeof(int)),*prevFooter+blockSize,0);
-				va=(int*)((char*)prevFooter-*prevFooter); //prevHeader
+				set_block_data((uint32*)((char*)prevFooter-*prevFooter+sizeof(uint32)),*prevFooter+blockSize,0);
+				va=(uint32*)((char*)prevFooter-*prevFooter); //prevHeader
 				blockSize+=*prevFooter;
 			}
 			vaNew=(struct BlockElement *) va;
