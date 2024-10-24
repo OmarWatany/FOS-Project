@@ -171,52 +171,22 @@ void *alloc_block_FF(uint32 size)
 	LIST_FOREACH(iter,&freeBlocksList)
 	{
 		freeBlockSize = get_block_size(iter);
-		cprintf("freeblockSize : %u , totalSize :%u\n", freeBlockSize,totalSize);
 		if(freeBlockSize>=totalSize)
 		{
 			if(freeBlockSize-totalSize<16) // it will take the entire block and we will have internal fragmentation
 			{
-				cprintf(" fragmentation \n");
 				set_block_data(iter,freeBlockSize,1);
 				LIST_REMOVE(&freeBlocksList,iter);
-				return iter;
 			}
 			else // we will split it into 2 blocks
 			{
-				cprintf(" split into two \n");
 				set_block_data(iter,totalSize,1); // alloc the first block that we needed
 				struct BlockElement* newFreeBlock= (struct BlockElement*)((char *)iter + totalSize);
 				set_block_data(newFreeBlock,freeBlockSize-totalSize,0);
-				if(LIST_FIRST(&freeBlocksList)==iter && LIST_LAST(&freeBlocksList)==iter) // if list size = 1
-				{
-					cprintf(" list size == 1 \n");
-					LIST_INIT(&freeBlocksList);
-					LIST_INSERT_HEAD(&freeBlocksList,newFreeBlock);
-				}
-				else if(LIST_FIRST(&freeBlocksList)==iter)
-				{
-					cprintf(" the first element \n");
-					LIST_REMOVE(&freeBlocksList,LIST_FIRST(&freeBlocksList));
-					LIST_INSERT_HEAD(&freeBlocksList,newFreeBlock);
-				}
-				//if its the last element
-				else if(LIST_LAST(&freeBlocksList)==iter)
-				{
-					cprintf(" the last element \n");
-					LIST_REMOVE(&freeBlocksList,LIST_LAST(&freeBlocksList));
-					LIST_INSERT_TAIL(&freeBlocksList,newFreeBlock);
-				}
-				//if its in the middle
-				else
-				{
-					cprintf(" alloc in the middle \n");
-					LIST_NEXT(LIST_PREV(iter)) = newFreeBlock;
-					LIST_PREV(LIST_NEXT(iter)) = newFreeBlock;
-					LIST_NEXT(newFreeBlock) = LIST_NEXT(iter);
-					LIST_PREV(newFreeBlock) = LIST_PREV(iter);
-				}
-				return iter;
+				LIST_INSERT_AFTER(&freeBlocksList,iter,newFreeBlock);
+				LIST_REMOVE(&freeBlocksList,iter);
 			}
+			return iter;
 		}
 	}
 	return NULL;
@@ -286,19 +256,25 @@ void free_block(void *va)
 			cprintf("5\n");
 			set_block_data(vaNew,blockSize,0);
 			cprintf("6\n");
+//			This is the part with the main issue rn , removing the next block after merging with it.
+// 				These three are trials for the same thing , only one of them should be uncommented
+//			1
 //			LIST_REMOVE(&freeBlocksList,(struct BlockElement *)((char*)(vaNew)+*(NHDR(vaNew))));
+//			2
 //			if(LIST_NEXT(vaNew)){
+//				cprintf("f");
 //				LIST_REMOVE(&freeBlocksList,LIST_NEXT(vaNew));
-//cprintf("ff");
+//				cprintf("ff");
 //			}
-			if(LIST_NEXT(LIST_NEXT(vaNew)))
-			{
-				LIST_NEXT(vaNew)=LIST_NEXT(LIST_NEXT(vaNew));
-			}
-			else
-			{
-				LIST_NEXT(vaNew)=0;
-			}
+//			3
+//			if(LIST_NEXT(LIST_NEXT(vaNew)))
+//			{
+//				LIST_NEXT(vaNew)=LIST_NEXT(LIST_NEXT(vaNew));
+//			}
+//			else
+//			{
+//				LIST_NEXT(vaNew)=0;
+//			}
 			cprintf("7\n");
 		}
 }
