@@ -197,11 +197,43 @@ void *alloc_block_FF(uint32 size)
 //=========================================
 void *alloc_block_BF(uint32 size)
 {
-	//TODO: [PROJECT'24.MS1 - BONUS] [3] DYNAMIC ALLOCATOR - alloc_block_BF
-	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	panic("alloc_block_BF is not implemented yet");
-	//Your Code is Here...
+	if(!size) //if requested size is 0 , return NULL
+	{
+		return NULL;
+	}
+	struct BlockElement *iter;
+	struct BlockElement *best_fit=NULL;
+	uint32 freeBlockSize;
+	uint32 totalSize=size+2*sizeof(uint32);
+	uint32 min_fragmentation=0xFFFFFFFF;
+	LIST_FOREACH(iter,&freeBlocksList)
+	{
+		freeBlockSize = get_block_size(iter);
+		if(freeBlockSize>=totalSize && freeBlockSize-totalSize<min_fragmentation)
+		{
+			min_fragmentation=freeBlockSize-totalSize;
+			best_fit=iter;
+		}
 
+	}
+	if(best_fit!=NULL)
+	{
+		freeBlockSize = get_block_size(best_fit);
+		if(freeBlockSize-totalSize<16) // it will take the entire block and we will have internal fragmentation
+		{
+			set_block_data(best_fit,freeBlockSize,1);
+			LIST_REMOVE(&freeBlocksList,best_fit);
+		}
+		else // we will split it into 2 blocks
+		{
+			set_block_data(best_fit,totalSize,1); // alloc the first block that we needed
+			struct BlockElement* newFreeBlock= (struct BlockElement*)((char *)best_fit+ totalSize);
+			set_block_data(newFreeBlock,freeBlockSize-totalSize,0);
+			LIST_INSERT_AFTER(&freeBlocksList,best_fit,newFreeBlock);
+			LIST_REMOVE(&freeBlocksList,best_fit);
+		}
+	}
+	return best_fit;
 }
 
 //===================================================
