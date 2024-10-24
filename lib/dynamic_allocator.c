@@ -209,7 +209,6 @@ void *alloc_block_BF(uint32 size)
 //===================================================
 void free_block(void *va)
 {
-	cprintf("inside free \n");
 	if(va==NULL)
 	{
 		return;
@@ -236,46 +235,24 @@ void free_block(void *va)
 	}
 	if(!f)
 	{
-		LIST_INSERT_TAIL(&freeBlocksList,vaNew);
+		LIST_INSERT_AFTER(&freeBlocksList,LIST_LAST(&freeBlocksList),vaNew);
 	}
 	if(*(PFTR(vaNew)) % 2 == 0 && *(PFTR(vaNew))>0)
 	{
-		cprintf("size before merge: %u , size after merge: %u\n",blockSize,blockSize+*(PFTR(vaNew)));
 		blockSize+= *(PFTR(vaNew));
-		cprintf("1\n");
 		set_block_data((struct BlockElement *)((char*)(vaNew)-*(PFTR(vaNew))),blockSize,0);
-		cprintf("2\n");
+		struct BlockElement * prev=LIST_PREV(vaNew);
 		LIST_REMOVE(&freeBlocksList,vaNew);
-		cprintf("3\n");
-		vaNew=(struct BlockElement *)((char*)(vaNew)-*(PFTR(vaNew)));
+		vaNew=prev;
 	}
 	if(*(NHDR(vaNew)) % 2 == 0 && *(NHDR(vaNew))>0)
 		{
-			cprintf("4\n");
 			blockSize+= *(NHDR(vaNew));
-			cprintf("5\n");
 			set_block_data(vaNew,blockSize,0);
-			cprintf("6\n");
-//			This is the part with the main issue rn , removing the next block after merging with it.
-// 				These three are trials for the same thing , only one of them should be uncommented
-//			1
-//			LIST_REMOVE(&freeBlocksList,(struct BlockElement *)((char*)(vaNew)+*(NHDR(vaNew))));
-//			2
-//			if(LIST_NEXT(vaNew)){
-//				cprintf("f");
-//				LIST_REMOVE(&freeBlocksList,LIST_NEXT(vaNew));
-//				cprintf("ff");
-//			}
-//			3
-//			if(LIST_NEXT(LIST_NEXT(vaNew)))
-//			{
-//				LIST_NEXT(vaNew)=LIST_NEXT(LIST_NEXT(vaNew));
-//			}
-//			else
-//			{
-//				LIST_NEXT(vaNew)=0;
-//			}
-			cprintf("7\n");
+			if(LIST_NEXT(vaNew)!=NULL && vaNew!=NULL){
+				struct BlockElement * next=LIST_NEXT(vaNew);
+				LIST_REMOVE(&freeBlocksList,next);
+			}
 		}
 }
 
