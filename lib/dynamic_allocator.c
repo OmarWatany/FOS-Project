@@ -136,10 +136,8 @@ void set_block_data(void* va, uint32 totalSize, bool isAllocated)
 //=========================================
 void *alloc_block_FF(uint32 size)
 {
-	if(!size) //if requested size is 0 , return NULL
-	{
-		return NULL;
-	}
+	//if requested size is 0 , return NULL
+	if(!size) return NULL;
 
 	//==================================================================================
 	//DON'T CHANGE THESE LINES==========================================================
@@ -285,9 +283,82 @@ void free_block(void *va)
 //=========================================
 void *realloc_block_FF(void* va, uint32 new_size)
 {
-	//TODO: [PROJECT'24.MS1 - #08] [3] DYNAMIC ALLOCATOR - realloc_block_FF
-	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	//Your Code is Here...
+	// TODO : copy data after new allocation
+	if (new_size % 2 != 0) new_size++;	//ensure that the size is even (to use LSB as allocation flag)
+	if (!va) return alloc_block_FF(new_size);
+	if (!new_size) 
+	{
+		free_block(va);
+		return NULL;
+	}
+
+	// NOTE: i don't know why he increase the totalSize by 6
+	uint32 oldSz = get_block_size(va), totalSize = new_size+2+6;
+	if (totalSize < 16) totalSize = 16;
+	if (totalSize == oldSz) return va; // Don't know if he wants to free it or not.
+	 
+	if( totalSize > oldSz )
+	{
+		struct BlockElement * next = NBLK(va);
+		if(next && get_block_size(next) && is_free_block(next))
+		{
+			uint32 nextSize = get_block_size(next);
+			uint32 newFreeBlockSize = nextSize + oldSz - totalSize ;
+			set_block_data(va,totalSize,1);
+			if(newFreeBlockSize < 16)
+			{
+				LIST_REMOVE(&freeBlocksList,next);
+			}
+			else
+			{
+				struct BlockElement * newBlock = (struct BlockElement *)(va + totalSize);
+				struct BlockElement * freePrev = LIST_PREV(next);
+				LIST_REMOVE(&freeBlocksList,next);
+				set_block_data(newBlock, newFreeBlockSize, 0);
+				LIST_INSERT_AFTER(&freeBlocksList,freePrev,newBlock);
+			}
+			return va;
+		}
+		else{
+			free_block(va);
+			return alloc_block_FF(new_size);
+		}
+	}
+
+	if (totalSize < oldSz)
+	{
+		struct BlockElement * next = NBLK(va);
+		uint32 newFreeBlockSize = oldSz - totalSize ;
+		struct BlockElement * newBlock = va + totalSize;
+		if(next && get_block_size(next) && is_free_block(next))
+		{
+			// TODO : ADD IN THE TEST FUNCTION
+			// -------------------------------
+			newFreeBlockSize += get_block_size(next);
+			set_block_data(newBlock, newFreeBlockSize, 0);
+			LIST_INSERT_AFTER(&freeBlocksList,LIST_PREV(next),newBlock);
+			LIST_REMOVE(&freeBlocksList,next);
+		}
+		else
+		{
+			if(newFreeBlockSize < 16) goto RETURN_VA;
+			set_block_data(newBlock, newFreeBlockSize, 0);
+			if(newBlock > LIST_LAST(&freeBlocksList)) LIST_INSERT_TAIL(&freeBlocksList,newBlock);
+			struct BlockElement *iter;
+			LIST_FOREACH(iter,&freeBlocksList)
+			{
+				if(newBlock < iter)
+				{
+					LIST_INSERT_BEFORE(&freeBlocksList,iter,newBlock);
+					break;
+				}
+			}
+		}
+		set_block_data(va, totalSize, 1);
+	RETURN_VA:
+		return va;
+	}
+
 	return NULL;
 }
 
