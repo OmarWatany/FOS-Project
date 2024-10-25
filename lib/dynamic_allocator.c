@@ -292,7 +292,7 @@ void *realloc_block_FF(void* va, uint32 new_size)
 		return NULL;
 	}
 
-	// NOTE: i don't know why he increase the totalSize by 6
+	// NOTE: i don't know why he increases the totalSize by 6
 	uint32 oldSz = get_block_size(va), totalSize = new_size+2+6;
 	if (totalSize < 16) totalSize = 16;
 	if (totalSize == oldSz) return va; // Don't know if he wants to free it or not.
@@ -303,6 +303,13 @@ void *realloc_block_FF(void* va, uint32 new_size)
 		if(next && get_block_size(next) && is_free_block(next))
 		{
 			uint32 nextSize = get_block_size(next);
+			if (nextSize < totalSize - oldSz);
+			{
+				cprintf("next sz = %u , totalSize = %u , oldSz = %u , new_size = %u\n");
+				free_block(va);
+				return alloc_block_FF(new_size);
+			}
+
 			uint32 newFreeBlockSize = nextSize + oldSz - totalSize ;
 			set_block_data(va,totalSize,1);
 			if(newFreeBlockSize < 16)
