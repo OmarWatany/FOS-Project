@@ -33,7 +33,7 @@ __inline__ int8 is_free_block(void* va)
 
 /* #define PBLK(va) 					 () */
 #define HDR(va) 					 ((uint32 *)((void *)(va) - sizeof(uint32)))
-#define FTR(va)  					 ((uint32 *)((void *)(va) + get_block_size((va)) - sizeof(uint32)))
+#define FTR(va)  					 ((uint32 *)((void *)(va) + get_block_size((va)) - 2*sizeof(uint32)))
 #define PFTR(va)					 ((uint32 *)((void *)HDR((va)) - sizeof(uint32)))
 #define NBLK(va) 					 ((struct BlockElement *)((void *)(va) + get_block_size((va))))
 #define NHDR(va)					 (HDR(NBLK((va))))
@@ -143,6 +143,11 @@ void set_block_data(void* va, uint32 totalSize, bool isAllocated)
 //=========================================
 void *alloc_block_FF(uint32 size)
 {
+	if(!size) //if requested size is 0 , return NULL
+	{
+		return NULL;
+	}
+
 	//==================================================================================
 	//DON'T CHANGE THESE LINES==========================================================
 	//==================================================================================
@@ -161,10 +166,6 @@ void *alloc_block_FF(uint32 size)
 	//==================================================================================
 	//==================================================================================
 
-	if(!size) //if requested size is 0 , return NULL
-	{
-		return NULL;
-	}
 	struct BlockElement *iter;
 	uint32 freeBlockSize;
 	uint32 totalSize=size+2*sizeof(uint32);
@@ -251,6 +252,7 @@ void free_block(void *va)
 	struct BlockElement * vaNew=(struct BlockElement *) va;
 	if(LIST_EMPTY(&freeBlocksList))
 	{
+		cprintf("was empty\n");
 		LIST_INSERT_HEAD(&freeBlocksList,vaNew);
 		return;
 	}
@@ -260,6 +262,7 @@ void free_block(void *va)
 	{
 		if(vaNew < iter)
 		{
+			cprintf("in the middle\n");
 			LIST_INSERT_BEFORE(&freeBlocksList,iter,vaNew);
 			f=1;
 			break;
@@ -267,25 +270,33 @@ void free_block(void *va)
 	}
 	if(!f)
 	{
+		cprintf("at tail \n");
 		LIST_INSERT_AFTER(&freeBlocksList,LIST_LAST(&freeBlocksList),vaNew);
 	}
+	cprintf("pfooter : %u , nheader: %u \n",*(PFTR(vaNew)),*(NHDR(vaNew)));
 	if(*(PFTR(vaNew)) % 2 == 0 && *(PFTR(vaNew))>0)
 	{
 		blockSize+= *(PFTR(vaNew));
+		cprintf("before: header :%u  footer : %u , size to be added :%u\n",*HDR(vaNew),*FTR(vaNew),*(PFTR(vaNew)));
 		set_block_data((struct BlockElement *)((char*)(vaNew)-*(PFTR(vaNew))),blockSize,0);
 		struct BlockElement * prev=LIST_PREV(vaNew);
 		LIST_REMOVE(&freeBlocksList,vaNew);
 		vaNew=prev;
+		cprintf("coalesce with prev\n");
+		cprintf("after: header :%u  footer : %u \n",*HDR(vaNew),*FTR(vaNew));
 	}
 	if(*(NHDR(vaNew)) % 2 == 0 && *(NHDR(vaNew))>0)
 		{
+			cprintf("coalesce with next\n");
+			cprintf("before header :%u  footer : %u , size to be added :%u  , block size : %u\n",*HDR(vaNew),*FTR(vaNew),*(NHDR(vaNew)),blockSize);
 			blockSize+= *(NHDR(vaNew));
 			set_block_data(vaNew,blockSize,0);
-			if(LIST_NEXT(vaNew)!=NULL && vaNew!=NULL){
-				struct BlockElement * next=LIST_NEXT(vaNew);
-				LIST_REMOVE(&freeBlocksList,next);
-			}
+			struct BlockElement * next=LIST_NEXT(vaNew);
+			LIST_REMOVE(&freeBlocksList,next);
+			cprintf("after header :%u  footer : %u \n",*HDR(vaNew),*FTR(vaNew));
 		}
+	cprintf("end of free\n");
+
 }
 
 //=========================================
