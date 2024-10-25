@@ -283,7 +283,6 @@ void free_block(void *va)
 //=========================================
 void *realloc_block_FF(void* va, uint32 new_size)
 {
-	// TODO : copy data after new allocation
 	if (new_size % 2 != 0) new_size++;	//ensure that the size is even (to use LSB as allocation flag)
 	if (!va) return alloc_block_FF(new_size);
 	if (!new_size) 
@@ -292,19 +291,23 @@ void *realloc_block_FF(void* va, uint32 new_size)
 		return NULL;
 	}
 
-	// NOTE: i don't know why he increase the totalSize by 6
+	// NOTE: i don't know why he increases the totalSize by 6
 	uint32 oldSz = get_block_size(va), totalSize = new_size+2+6;
 	if (totalSize < 16) totalSize = 16;
 	if (totalSize == oldSz) return va; // Don't know if he wants to free it or not.
 	 
+	void *result = NULL;
 	if( totalSize > oldSz )
 	{
 		struct BlockElement * next = NBLK(va);
 		if(next && get_block_size(next) && is_free_block(next))
 		{
 			uint32 nextSize = get_block_size(next);
+			if(nextSize < totalSize - oldSz) goto NEW_MEM_PLACE;
+
 			uint32 newFreeBlockSize = nextSize + oldSz - totalSize ;
 			set_block_data(va,totalSize,1);
+			// In place 
 			if(newFreeBlockSize < 16)
 			{
 				LIST_REMOVE(&freeBlocksList,next);
@@ -320,11 +323,14 @@ void *realloc_block_FF(void* va, uint32 new_size)
 			return va;
 		}
 		else{
+		NEW_MEM_PLACE:
+			result = memcpy(alloc_block_FF(new_size),va,oldSz-sizeof(uint32));
 			free_block(va);
-			return alloc_block_FF(new_size);
+			return result;
 		}
 	}
 
+	// In place
 	if (totalSize < oldSz)
 	{
 		struct BlockElement * next = NBLK(va);
