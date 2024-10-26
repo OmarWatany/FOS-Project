@@ -291,20 +291,24 @@ void *realloc_block_FF(void* va, uint32 new_size)
 		return NULL;
 	}
 
-	// NOTE: i don't know why he increases the totalSize by 6
-	uint32 oldSz = get_block_size(va), totalSize = new_size+2+6;
+	uint32 oldSz = get_block_size(va), totalSize = new_size+2*sizeof(uint32);
 	if (totalSize < 16) totalSize = 16;
 	if (totalSize == oldSz) return va; // Don't know if he wants to free it or not.
-	 
+
 	void *result = NULL;
 	if( totalSize > oldSz )
 	{
 		struct BlockElement * next = NBLK(va);
-		if(next && get_block_size(next) && is_free_block(next))
+		uint32 nextSize = 0;
+		if( next ) nextSize = get_block_size(next);
+		if( nextSize == 0 ||  nextSize < totalSize - oldSz )
 		{
-			uint32 nextSize = get_block_size(next);
-			if(nextSize < totalSize - oldSz) goto NEW_MEM_PLACE;
-
+			result = memcpy(alloc_block_FF(new_size),va,oldSz-sizeof(uint32));
+			free_block(va);
+			return result;
+		}
+		else if (is_free_block(next))
+		{
 			uint32 newFreeBlockSize = nextSize + oldSz - totalSize ;
 			set_block_data(va,totalSize,1);
 			// In place 
@@ -321,12 +325,6 @@ void *realloc_block_FF(void* va, uint32 new_size)
 				LIST_INSERT_AFTER(&freeBlocksList,freePrev,newBlock);
 			}
 			return va;
-		}
-		else{
-		NEW_MEM_PLACE:
-			result = memcpy(alloc_block_FF(new_size),va,oldSz-sizeof(uint32));
-			free_block(va);
-			return result;
 		}
 	}
 
