@@ -20,6 +20,7 @@ void init_sleeplock(struct sleeplock *lk, char *name)
 	lk->locked = 0;
 	lk->pid = 0;
 }
+
 int holding_sleeplock(struct sleeplock *lk)
 {
 	int r;
@@ -32,23 +33,33 @@ int holding_sleeplock(struct sleeplock *lk)
 
 void acquire_sleeplock(struct sleeplock *lk)
 {
-	//TODO: [PROJECT'24.MS1 - #13] [4] LOCKS - acquire_sleeplock
-	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	panic("acquire_sleeplock is not implemented yet");
-	//Your Code is Here...
+	// Acquire the internal spinlock
+	acquire_spinlock(&lk->lk);
 
+	// Check if the lock is already held
+	while (lk->locked) sleep(&lk->chan, &lk->lk); // Sleep on the lock's channel if it's held
+
+	// Lock is free, so acquire it
+	lk->locked = 1;
+	lk->pid = get_cpu_proc()->env_id;
+
+	// Release the internal spinlock
+	release_spinlock(&lk->lk);
 }
 
 void release_sleeplock(struct sleeplock *lk)
 {
-	//TODO: [PROJECT'24.MS1 - #14] [4] LOCKS - release_sleeplock
-	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	panic("release_sleeplock is not implemented yet");
-	//Your Code is Here...
+	// Acquire the internal spinlock
+	acquire_spinlock(&lk->lk);
 
+	// Check if the current process holds the lock
+	if (lk->locked && lk->pid == get_cpu_proc()->env_id)
+	{
+		lk->locked = 0; // Release the lock
+		lk->pid = 0;
+		wakeup_all(&lk->chan); // Wake up any waiting processes
+	}
+
+	// Release the internal spinlock
+	release_spinlock(&lk->lk);
 }
-
-
-
-
-
