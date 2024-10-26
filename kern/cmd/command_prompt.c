@@ -452,17 +452,33 @@ int execute_command(char *command_string)
 	return 0;
 }
 
-
 int process_command(int number_of_arguments, char** arguments)
 {
-	//TODO: [PROJECT'24.MS1 - #01] [1] PLAY WITH CODE! - process_command
-
+	LIST_INIT(&foundCommands);
+	bool f = 1,cmdMatched = 0;
 	for (int i = 0; i < NUM_OF_COMMANDS; i++)
 	{
 		if (strcmp(arguments[0], commands[i].name) == 0)
 		{
+			if (commands[i].num_of_args != -1 && number_of_arguments - 1 != commands[i].num_of_args)  // -1 to exclude the command itself
+			{
+				LIST_INSERT_TAIL(&foundCommands, &commands[i]);
+			  return CMD_INV_NUM_ARGS;
+			}
 			return i;
 		}
+		else
+		{
+			f = 1;
+			for(int j = 0 ; j < strlen(arguments[0]) && f ; j++)
+				f = commands[i].name[j] == arguments[0][j];
+			if (f)
+			{
+				LIST_INSERT_TAIL(&foundCommands, &commands[i]);
+				cmdMatched = f;
+			}
+		}
 	}
+	if (cmdMatched) return CMD_MATCHED;
 	return CMD_INVALID;
 }
