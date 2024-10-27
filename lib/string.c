@@ -104,6 +104,17 @@ strfind(const char *s, char c)
 	return (char *) s;
 }
 
+// Return first occurance of needle in heystack
+// or null if not found
+char *
+strstr(const char *s1, const char *s2){
+	char * f = strfind(s1, *s2);
+	for(s1 = f;*s2;s2++,s1++)
+		if(*s2 != *s1)
+			f = 0;
+	return (char *)f;
+}
+
 
 void *
 memset(void *v, int c, uint32 n)

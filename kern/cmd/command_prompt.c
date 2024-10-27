@@ -455,30 +455,23 @@ int execute_command(char *command_string)
 int process_command(int number_of_arguments, char** arguments)
 {
 	LIST_INIT(&foundCommands);
-	bool f = 1,cmdMatched = 0;
+	bool cmdMatched = 0;
 	for (int i = 0; i < NUM_OF_COMMANDS; i++)
 	{
 		if (strcmp(arguments[0], commands[i].name) == 0)
 		{
-			if (commands[i].num_of_args != -1 && number_of_arguments - 1 != commands[i].num_of_args)  // -1 to exclude the command itself
-			{
-				LIST_INSERT_TAIL(&foundCommands, &commands[i]);
-			  return CMD_INV_NUM_ARGS;
-			}
-			return i;
+			if(number_of_arguments - 1 == commands[i].num_of_args || commands[i].num_of_args == -1)
+				return i;
+			LIST_INSERT_TAIL(&foundCommands, &commands[i]);
+			return CMD_INV_NUM_ARGS;
 		}
 		else
 		{
-			f = 1;
-			for(int j = 0 ; j < strlen(arguments[0]) && f ; j++)
-				f = commands[i].name[j] == arguments[0][j];
-			if (f)
-			{
-				LIST_INSERT_TAIL(&foundCommands, &commands[i]);
-				cmdMatched = f;
-			}
+			if (!strstr(commands[i].name,arguments[0]))
+				continue;
+			LIST_INSERT_TAIL(&foundCommands, &commands[i]);
+			cmdMatched = 1;
 		}
 	}
-	if (cmdMatched) return CMD_MATCHED;
-	return CMD_INVALID;
+	return cmdMatched ? CMD_MATCHED : CMD_INVALID;
 }

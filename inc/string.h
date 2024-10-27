@@ -14,6 +14,7 @@ int	strcmp(const char *s1, const char *s2);
 int	strncmp(const char *s1, const char *s2, uint32 size);
 char *	strchr(const char *s, char c);
 char *	strfind(const char *s, char c);
+char *  strstr(const char *s1,const char* s2);
 
 void *	memset(void *dst, int c, uint32 len);
 void *	memcpy(void *dst, const void *src, uint32 len);
