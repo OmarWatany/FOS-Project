@@ -31,12 +31,13 @@ __inline__ int8 is_free_block(void* va)
 	return (~(*curBlkMetaData) & 0x1) ;
 }
 
+#define METADATA_SIZE (2 * sizeof(uint32))
 #define HDR(va)  ((uint32 *)(va) - 1)
-#define FTR(va)  ((uint32 *)((void *)(va) + get_block_size((void*)(va)) - 2* sizeof(uint32)))
+#define FTR(va)  ((uint32 *)((void *)(va) + get_block_size((void*)(va)) - METADATA_SIZE))
 #define NBLK(va) ((struct BlockElement *)((void *)(va) + get_block_size(va)))
 #define NHDR(va) ((uint32 *)NBLK(va) - 1)
 #define PFTR(va) ((uint32 *)(va) - 2)
-#define VAFTR(ftr) ((void *)(ftr) - (*(ftr) - (*(ftr) % 2)) + 2 * sizeof(uint32)) 
+#define VAFTR(ftr) ((void *)(ftr) - (*(ftr) - (*(ftr) % 2)) + METADATA_SIZE) 
 
 //===========================
 // 3) ALLOCATE BLOCK:
@@ -158,7 +159,7 @@ void *alloc_block_FF(uint32 size)
 	//==================================================================================
 	if(!size) return NULL; //if requested size is 0 , return NULL
 	uint32 freeBlockSize;
-	uint32 totalSize=size+2*sizeof(uint32);
+	uint32 totalSize=size+METADATA_SIZE;
 	struct BlockElement *iter;
 	LIST_FOREACH(iter,&freeBlocksList)
 	{
@@ -211,7 +212,7 @@ void *alloc_block_BF(uint32 size)
 	struct BlockElement *iter;
 	struct BlockElement *best_fit=NULL;
 	uint32 freeBlockSize;
-	uint32 totalSize=size+2*sizeof(uint32);
+	uint32 totalSize=size+METADATA_SIZE;
 	uint32 min_fragmentation=0xFFFFFFFF;
 	LIST_FOREACH(iter,&freeBlocksList)
 	{
@@ -292,7 +293,7 @@ void *realloc_block_FF(void* va, uint32 new_size)
 	if (new_size % 2 != 0) new_size++;	//ensure that the size is even (to use LSB as allocation flag)
 	if (!is_initialized)
 	{
-		uint32 required_size = new_size + 2*sizeof(int) /*header & footer*/ + 2*sizeof(int) /*da begin & end*/ ;
+		uint32 required_size = new_size + METADATA_SIZE /*header & footer*/ + 2*sizeof(int) /*da begin & end*/ ;
 		uint32 da_start = (uint32)sbrk(ROUNDUP(required_size, PAGE_SIZE)/PAGE_SIZE);
 		uint32 da_break = (uint32)sbrk(0);
 		initialize_dynamic_allocator(da_start, da_break - da_start);
@@ -304,7 +305,7 @@ void *realloc_block_FF(void* va, uint32 new_size)
 		return NULL;
 	}
 
-	uint32 oldSz = get_block_size(va), totalSize = new_size+2*sizeof(uint32);
+	uint32 oldSz = get_block_size(va), totalSize = new_size+METADATA_SIZE;
 	if (totalSize < 16) totalSize = 16;
 	if (totalSize == oldSz) return va; // Don't know if he wants to free it or not.
 
@@ -317,7 +318,7 @@ void *realloc_block_FF(void* va, uint32 new_size)
 		if( nextSize == 0 || !is_free_block(next) ||  nextSize < totalSize - oldSz )
 		{
 			if (!LIST_SIZE(&freeBlocksList)) return NULL; //if there is no space , later we should sbrk
-			result = memcpy(alloc_block_FF(new_size),va,oldSz-sizeof(uint32));
+			result = memcpy(alloc_block_FF(new_size),va,oldSz - METADATA_SIZE);
 			free_block(va);
 			return result;
 		}
