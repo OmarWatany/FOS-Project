@@ -314,7 +314,7 @@ void *realloc_block_FF(void* va, uint32 new_size)
 		struct BlockElement * next = NBLK(va);
 		uint32 nextSize = 0;
 		if( next ) nextSize = get_block_size(next);
-		if( nextSize == 0 ||  nextSize < totalSize - oldSz )
+		if( nextSize == 0 || !is_free_block(next) ||  nextSize < totalSize - oldSz )
 		{
 			if (!LIST_SIZE(&freeBlocksList)) return NULL; //if there is no space , later we should sbrk
 			result = memcpy(alloc_block_FF(new_size),va,oldSz-sizeof(uint32));
