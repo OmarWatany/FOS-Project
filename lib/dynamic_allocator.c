@@ -308,19 +308,18 @@ void *realloc_block_FF(void* va, uint32 new_size)
 		struct BlockElement * next = NBLK(va);
 		uint32 nextSize = 0;
 		if( next ) nextSize = get_block_size(next);
-		if( nextSize == 0 ||  nextSize < totalSize - oldSz )
+		if( nextSize == 0 || !is_free_block(next) ||  nextSize < totalSize - oldSz )
 		{
-			result = memcpy(alloc_block_FF(new_size),va,oldSz-sizeof(uint32));
+			result = memcpy(alloc_block_FF(new_size),va,oldSz-2*sizeof(uint32));
 			free_block(va);
 			return result;
 		}
 		else if (is_free_block(next))
 		{
 			uint32 newFreeBlockSize = nextSize + oldSz - totalSize ;
-			set_block_data(va,totalSize,1);
-			// In place 
 			if(newFreeBlockSize < 16)
 			{
+				totalSize += newFreeBlockSize;
 				LIST_REMOVE(&freeBlocksList,next);
 			}
 			else
@@ -331,6 +330,7 @@ void *realloc_block_FF(void* va, uint32 new_size)
 				set_block_data(newBlock, newFreeBlockSize, 0);
 				LIST_INSERT_AFTER(&freeBlocksList,freePrev,newBlock);
 			}
+			set_block_data(va,totalSize,1);
 			return va;
 		}
 	}
@@ -343,8 +343,6 @@ void *realloc_block_FF(void* va, uint32 new_size)
 		struct BlockElement * newBlock = va + totalSize;
 		if(next && get_block_size(next) && is_free_block(next))
 		{
-			// TODO : ADD IN THE TEST FUNCTION
-			// -------------------------------
 			newFreeBlockSize += get_block_size(next);
 			set_block_data(newBlock, newFreeBlockSize, 0);
 			LIST_INSERT_AFTER(&freeBlocksList,LIST_PREV(next),newBlock);
