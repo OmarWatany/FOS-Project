@@ -452,6 +452,17 @@ int execute_command(char *command_string)
 	return 0;
 }
 
+// Return first occurance of needle in heystack
+// or null if not found
+char *
+strstr(const char *s1, const char *s2){
+	char * f = strfind(s1, *s2);
+	for(s1 = f;*s2;s2++,s1++)
+		if(*s2 != *s1)
+			f = 0;
+	return (char *)f;
+} // i will put it here for this milestone
+
 int process_command(int number_of_arguments, char** arguments)
 {
 	LIST_INIT(&foundCommands);
