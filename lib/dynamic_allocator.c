@@ -180,6 +180,12 @@ void *alloc_block_FF(uint32 size)
 		}
 		return iter;
 	}
+	// if freeBlocksList is empty
+	// uint32 required_size = size + 2*sizeof(int);
+	// struct BlockElement * newBlock=(struct BlockElement *)sbrk(ROUNDUP(required_size, PAGE_SIZE)/PAGE_SIZE);
+	// LIST_INSERT_TAIL(&freeBlocksList,newBlock);
+	// // try to allocate again after we made the space
+	// return alloc_block_FF(size);
 	return NULL;
 }
 
@@ -310,6 +316,7 @@ void *realloc_block_FF(void* va, uint32 new_size)
 		if( next ) nextSize = get_block_size(next);
 		if( nextSize == 0 ||  nextSize < totalSize - oldSz )
 		{
+			if (!LIST_SIZE(&freeBlocksList)) return NULL; //if there is no space , later we should sbrk
 			result = memcpy(alloc_block_FF(new_size),va,oldSz-sizeof(uint32));
 			free_block(va);
 			return result;
@@ -317,14 +324,15 @@ void *realloc_block_FF(void* va, uint32 new_size)
 		else if (is_free_block(next))
 		{
 			uint32 newFreeBlockSize = nextSize + oldSz - totalSize ;
-			set_block_data(va,totalSize,1);
-			// In place 
+			// In place if the size increased and there is space after it
 			if(newFreeBlockSize < 16)
 			{
+				set_block_data(va,oldSz+nextSize,1);
 				LIST_REMOVE(&freeBlocksList,next);
 			}
 			else
 			{
+				set_block_data(va,totalSize,1);
 				struct BlockElement * newBlock = (struct BlockElement *)(va + totalSize);
 				struct BlockElement * freePrev = LIST_PREV(next);
 				LIST_REMOVE(&freeBlocksList,next);
@@ -335,42 +343,26 @@ void *realloc_block_FF(void* va, uint32 new_size)
 		}
 	}
 
-	// In place
-	if (totalSize < oldSz)
+	// In place if the size is decreased
+	struct BlockElement * next = NBLK(va);
+	uint32 newFreeBlockSize = oldSz - totalSize ;
+	struct BlockElement * newBlock = va + totalSize;
+	if(next && get_block_size(next) && is_free_block(next))
 	{
-		struct BlockElement * next = NBLK(va);
-		uint32 newFreeBlockSize = oldSz - totalSize ;
-		struct BlockElement * newBlock = va + totalSize;
-		if(next && get_block_size(next) && is_free_block(next))
-		{
-			// TODO : ADD IN THE TEST FUNCTION
-			// -------------------------------
-			newFreeBlockSize += get_block_size(next);
-			set_block_data(newBlock, newFreeBlockSize, 0);
-			LIST_INSERT_AFTER(&freeBlocksList,LIST_PREV(next),newBlock);
-			LIST_REMOVE(&freeBlocksList,next);
-		}
-		else
-		{
-			if(newFreeBlockSize < 16) goto RETURN_VA;
-			set_block_data(newBlock, newFreeBlockSize, 0);
-			if(newBlock > LIST_LAST(&freeBlocksList)) LIST_INSERT_TAIL(&freeBlocksList,newBlock);
-			struct BlockElement *iter;
-			LIST_FOREACH(iter,&freeBlocksList)
-			{
-				if(newBlock < iter)
-				{
-					LIST_INSERT_BEFORE(&freeBlocksList,iter,newBlock);
-					break;
-				}
-			}
-		}
-		set_block_data(va, totalSize, 1);
+		newFreeBlockSize += get_block_size(next);
+		set_block_data(newBlock, newFreeBlockSize, 0);
+		LIST_INSERT_AFTER(&freeBlocksList,LIST_PREV(next),newBlock);
+		LIST_REMOVE(&freeBlocksList,next);
+	}
+	else
+	{
+		if(newFreeBlockSize < 16) goto RETURN_VA;
+		set_block_data(newBlock, newFreeBlockSize, 0);
+		free_block(newBlock);
+	}
+	set_block_data(va, totalSize, 1);
 	RETURN_VA:
 		return va;
-	}
-
-	return NULL;
 }
 
 /*********************************************************************************************/
