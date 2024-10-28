@@ -286,7 +286,7 @@ void *realloc_block_FF(void* va, uint32 new_size)
 	if (new_size % 2 != 0) new_size++;	//ensure that the size is even (to use LSB as allocation flag)
 	if (!is_initialized)
 	{
-		uint32 required_size = size + 2*sizeof(int) /*header & footer*/ + 2*sizeof(int) /*da begin & end*/ ;
+		uint32 required_size = new_size + 2*sizeof(int) /*header & footer*/ + 2*sizeof(int) /*da begin & end*/ ;
 		uint32 da_start = (uint32)sbrk(ROUNDUP(required_size, PAGE_SIZE)/PAGE_SIZE);
 		uint32 da_break = (uint32)sbrk(0);
 		initialize_dynamic_allocator(da_start, da_break - da_start);
