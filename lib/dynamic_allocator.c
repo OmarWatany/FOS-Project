@@ -124,6 +124,8 @@ void initialize_dynamic_allocator(uint32 daStart, uint32 initSizeOfAllocatedSpac
 //==================================
 void set_block_data(void* va, uint32 totalSize, bool isAllocated)
 {
+	// va is the start of the block , not the start of the header
+	//totalSize includes the 8 bytes of the header and the footer 
 	uint32 *headerPointer= HDR(va);
 	*headerPointer = totalSize + isAllocated;
 	uint32 *footerPointer= FTR(va);
@@ -157,7 +159,6 @@ void *alloc_block_FF(uint32 size)
 	}
 	//==================================================================================
 	//==================================================================================
-	if(!size) return NULL; //if requested size is 0 , return NULL
 	uint32 freeBlockSize;
 	uint32 totalSize=size+METADATA_SIZE;
 	struct BlockElement *iter;
@@ -181,13 +182,16 @@ void *alloc_block_FF(uint32 size)
 		}
 		return iter;
 	}
-	// if freeBlocksList is empty
-	// uint32 required_size = size + 2*sizeof(int);
-	// struct BlockElement * newBlock=(struct BlockElement *)sbrk(ROUNDUP(required_size, PAGE_SIZE)/PAGE_SIZE);
-	// LIST_INSERT_TAIL(&freeBlocksList,newBlock);
-	// // try to allocate again after we made the space
-	// return alloc_block_FF(size);
-	return NULL;
+	// if freeBlocksList is empty , or there is no block big enough for it
+	int noOfPages=ROUNDUP(totalSize, PAGE_SIZE)/PAGE_SIZE;
+	uint32 * oldBrk =(uint32 *) sbrk(noOfPages);
+	if(oldBrk==(void *)-1) return NULL;
+	uint32 p=noOfPages*PAGE_SIZE/4;
+	*(oldBrk+p-1)=1;
+	set_block_data(oldBrk,noOfPages*PAGE_SIZE,0);
+	free_block(oldBrk);
+	// try to allocate again after we made the space
+	return alloc_block_FF(size);
 }
 
 //=========================================
