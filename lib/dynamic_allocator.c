@@ -156,7 +156,6 @@ void *alloc_block_FF(uint32 size)
 	}
 	//==================================================================================
 	//==================================================================================
-	if(!size) return NULL; //if requested size is 0 , return NULL
 	uint32 freeBlockSize;
 	uint32 totalSize=size+2*sizeof(uint32);
 	struct BlockElement *iter;
@@ -180,13 +179,15 @@ void *alloc_block_FF(uint32 size)
 		}
 		return iter;
 	}
-	// if freeBlocksList is empty
-	// uint32 required_size = size + 2*sizeof(int);
-	// struct BlockElement * newBlock=(struct BlockElement *)sbrk(ROUNDUP(required_size, PAGE_SIZE)/PAGE_SIZE);
-	// LIST_INSERT_TAIL(&freeBlocksList,newBlock);
-	// // try to allocate again after we made the space
-	// return alloc_block_FF(size);
-	return NULL;
+	// if freeBlocksList is empty , or there is no block big enough for it
+	int noOfPages=ROUNDUP(totalSize, PAGE_SIZE)/PAGE_SIZE;
+	uint32 * oldBrk =(uint32 *) sbrk(noOfPages);
+	if(oldBrk==(void *)-1) return NULL;
+	memcpy((uint32 *) ((uint32) oldBrk+ noOfPages*PAGE_SIZE-sizeof(uint32)),oldBrk-1,sizeof(uint32));
+	set_block_data(oldBrk,noOfPages*PAGE_SIZE,0);
+	free_block(oldBrk);
+	// try to allocate again after we made the space
+	return alloc_block_FF(size);
 }
 
 //=========================================

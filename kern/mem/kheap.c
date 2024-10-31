@@ -12,9 +12,24 @@
 //	Otherwise (if no memory OR initial size exceed the given limit): PANIC
 int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate, uint32 daLimit)
 {
-	//TODO: [PROJECT'24.MS2 - #01] [1] KERNEL HEAP - initialize_kheap_dynamic_allocator
-	// Write your code here, remove the panic and write your code
-	panic("initialize_kheap_dynamic_allocator() is not implemented yet...!!");
+	if(initSizeToAllocate>daStart+daLimit) panic("whats this?");
+
+	da_Start=(uint32 *) daStart;
+	brk=(uint32 *) (da_Start+initSizeToAllocate);
+	rlimit=(uint32 *)daLimit;
+	// TODO : All pages should be allocated and mapped??
+	struct FrameInfo *ptr_frame_info ; 
+	int ret;
+	for (uint32 i = daStart; i < daStart+initSizeToAllocate; i+=PAGE_SIZE)
+	{
+		ret=allocate_frame(&ptr_frame_info); 
+		if(ret==E_NO_MEM) panic("we need more memory!");
+		ret=map_frame(ptr_page_directory,ptr_frame_info,i,0);
+		if(ret==E_NO_MEM) panic("we need more memory!");
+	}
+	initialize_dynamic_allocator(daStart,initSizeToAllocate);
+	return 0;
+
 }
 
 void* sbrk(int numOfPages)
@@ -28,14 +43,24 @@ void* sbrk(int numOfPages)
 	 * 	1) Allocating additional pages for a kernel dynamic allocator will fail if the free frames are exhausted
 	 * 		or the break exceed the limit of the dynamic allocator. If sbrk fails, return -1
 	 */
+	//if requested size is 0 , return the old break limit
+	if(!numOfPages) return brk;
+	//if break exceeded the hard limit , return -1
+	if(brk+numOfPages*PAGE_SIZE>rlimit) return (void *)-1;
+	uint32 * oldBrk=brk;
+	brk+=numOfPages*PAGE_SIZE;
+	struct FrameInfo *ptr_frame_info ; 
+	int ret;
 
-	//MS2: COMMENT THIS LINE BEFORE START CODING==========
-	return (void*)-1 ;
-	//====================================================
+	for (uint32 i = (uint32)oldBrk ; i < (uint32)brk; i+=PAGE_SIZE)
+	{
+		ret=allocate_frame(&ptr_frame_info); 
+		if(ret==E_NO_MEM) panic("we need more memory!");
+		ret=map_frame(ptr_page_directory,ptr_frame_info,i,0);
+		if(ret==E_NO_MEM) panic("we need more memory!");
+	}
+	return oldBrk;	
 
-	//TODO: [PROJECT'24.MS2 - #02] [1] KERNEL HEAP - sbrk
-	// Write your code here, remove the panic and write your code
-	panic("sbrk() is not implemented yet...!!");
 }
 
 //TODO: [PROJECT'24.MS2 - BONUS#2] [1] KERNEL HEAP - Fast Page Allocator
