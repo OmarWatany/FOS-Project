@@ -123,6 +123,8 @@ void initialize_dynamic_allocator(uint32 daStart, uint32 initSizeOfAllocatedSpac
 //==================================
 void set_block_data(void* va, uint32 totalSize, bool isAllocated)
 {
+	// va is the start of the block , not the start of the header
+	//totalSize includes the 8 bytes of the header and the footer 
 	uint32 *headerPointer= HDR(va);
 	*headerPointer = totalSize + isAllocated;
 	uint32 *footerPointer= FTR(va);
@@ -183,7 +185,8 @@ void *alloc_block_FF(uint32 size)
 	int noOfPages=ROUNDUP(totalSize, PAGE_SIZE)/PAGE_SIZE;
 	uint32 * oldBrk =(uint32 *) sbrk(noOfPages);
 	if(oldBrk==(void *)-1) return NULL;
-	memcpy((uint32 *) ((uint32) oldBrk+ noOfPages*PAGE_SIZE-sizeof(uint32)),oldBrk-1,sizeof(uint32));
+	uint32 p=noOfPages*PAGE_SIZE/4;
+	*(oldBrk+p-1)=1;
 	set_block_data(oldBrk,noOfPages*PAGE_SIZE,0);
 	free_block(oldBrk);
 	// try to allocate again after we made the space

@@ -12,19 +12,17 @@
 //	Otherwise (if no memory OR initial size exceed the given limit): PANIC
 int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate, uint32 daLimit)
 {
-	if(initSizeToAllocate>daStart+daLimit) panic("whats this?");
-
+	if(initSizeToAllocate>daLimit-daStart) panic("whats this?");
 	da_Start=(uint32 *) daStart;
-	brk=(uint32 *) (da_Start+initSizeToAllocate);
+	brk=(uint32 *) ((uint32)da_Start +initSizeToAllocate);
 	rlimit=(uint32 *)daLimit;
-	// TODO : All pages should be allocated and mapped??
 	struct FrameInfo *ptr_frame_info ; 
 	int ret;
 	for (uint32 i = daStart; i < daStart+initSizeToAllocate; i+=PAGE_SIZE)
 	{
 		ret=allocate_frame(&ptr_frame_info); 
 		if(ret==E_NO_MEM) panic("we need more memory!");
-		ret=map_frame(ptr_page_directory,ptr_frame_info,i,0);
+		ret=map_frame(ptr_page_directory,ptr_frame_info,i,PERM_USER|PERM_WRITEABLE);
 		if(ret==E_NO_MEM) panic("we need more memory!");
 	}
 	initialize_dynamic_allocator(daStart,initSizeToAllocate);
@@ -48,31 +46,47 @@ void* sbrk(int numOfPages)
 	//if break exceeded the hard limit , return -1
 	if(brk+numOfPages*PAGE_SIZE>rlimit) return (void *)-1;
 	uint32 * oldBrk=brk;
-	brk+=numOfPages*PAGE_SIZE;
+	brk+=numOfPages*PAGE_SIZE/4;
 	struct FrameInfo *ptr_frame_info ; 
 	int ret;
-
 	for (uint32 i = (uint32)oldBrk ; i < (uint32)brk; i+=PAGE_SIZE)
 	{
 		ret=allocate_frame(&ptr_frame_info); 
 		if(ret==E_NO_MEM) panic("we need more memory!");
-		ret=map_frame(ptr_page_directory,ptr_frame_info,i,0);
+		ret=map_frame(ptr_page_directory,ptr_frame_info,i,PERM_USER|PERM_WRITEABLE);
 		if(ret==E_NO_MEM) panic("we need more memory!");
 	}
 	return oldBrk;	
-
 }
 
 //TODO: [PROJECT'24.MS2 - BONUS#2] [1] KERNEL HEAP - Fast Page Allocator
 
 void* kmalloc(unsigned int size)
 {
-	//TODO: [PROJECT'24.MS2 - #03] [1] KERNEL HEAP - kmalloc
-	// Write your code here, remove the panic and write your code
-	kpanic_into_prompt("kmalloc() is not implemented yet...!!");
-
-	// use "isKHeapPlacementStrategyFIRSTFIT() ..." functions to check the current strategy
-
+	if(!size) return NULL;
+	if(size+8<=DYN_ALLOC_MAX_BLOCK_SIZE) //if its less or equal to 2KB , then refer it to the block allocator
+	{
+		return alloc_block_FF(size);
+	}
+	else
+	{
+		struct FrameInfo * firstPointer;
+		if(isKHeapPlacementStrategyFIRSTFIT()==1)
+		{
+			uint32 noOfPages=ROUNDUP(size,PAGE_SIZE)/PAGE_SIZE;
+			struct FrameInfo *ptr_frame_info ; 
+			int ret;
+			for(int i=0;i<noOfPages;i++)
+			{
+				ret=allocate_frame(&ptr_frame_info); 
+				if(!i) firstPointer=(struct FrameInfo *) to_physical_address(ptr_frame_info);
+				if(ret==E_NO_MEM) return NULL;
+				ret=map_frame(ptr_page_directory,ptr_frame_info,i,0);
+				if(ret==E_NO_MEM) return NULL;
+			}
+		}
+		return firstPointer;
+	}
 }
 
 void kfree(void* virtual_address)
