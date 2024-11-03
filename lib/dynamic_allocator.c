@@ -184,11 +184,11 @@ void *alloc_block_FF(uint32 size)
 	}
 	// if freeBlocksList is empty , or there is no block big enough for it
 	int noOfPages=ROUNDUP(totalSize, PAGE_SIZE)/PAGE_SIZE;
-	uint32 * oldBrk =(uint32 *) sbrk(noOfPages);
+	uint32 * oldBrk =(uint32 *) sbrk(1); // 1 because it can't need more than one block because the dynamic allocator works only if the needed size is less than 2kb
 	if(oldBrk==(void *)-1) return NULL;
 	uint32 p=noOfPages*PAGE_SIZE/4;
 	*(oldBrk+p-1)=1;
-	set_block_data(oldBrk,noOfPages*PAGE_SIZE,0);
+	set_block_data(oldBrk,PAGE_SIZE,0);
 	free_block(oldBrk);
 	// try to allocate again after we made the space
 	return alloc_block_FF(size);

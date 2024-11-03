@@ -22,7 +22,7 @@ int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate
 	{
 		ret=allocate_frame(&ptr_frame_info); 
 		if(ret==E_NO_MEM) panic("we need more memory!");
-		ret=map_frame(ptr_page_directory,ptr_frame_info,i,PERM_USER|PERM_WRITEABLE);
+		ret=map_frame(ptr_page_directory,ptr_frame_info,i,PERM_USER|PERM_WRITEABLE)	;
 		if(ret==E_NO_MEM) panic("we need more memory!");
 	}
 	initialize_dynamic_allocator(daStart,initSizeToAllocate);
@@ -64,29 +64,39 @@ void* sbrk(int numOfPages)
 void* kmalloc(unsigned int size)
 {
 	if(!size) return NULL;
-	if(size+8<=DYN_ALLOC_MAX_BLOCK_SIZE) //if its less or equal to 2KB , then refer it to the block allocator
+	
+	//if its less or equal to 2KB , then refer it to the block allocator
+	if(size<=DYN_ALLOC_MAX_BLOCK_SIZE) return alloc_block_FF(size);
+
+	struct FrameInfo * firstPointer;
+	if(isKHeapPlacementStrategyFIRSTFIT()==1)
 	{
-		return alloc_block_FF(size);
-	}
-	else
-	{
-		struct FrameInfo * firstPointer;
-		if(isKHeapPlacementStrategyFIRSTFIT()==1)
+		uint32 noOfPages=ROUNDUP(size,PAGE_SIZE)/PAGE_SIZE;
+		struct FrameInfo *ptr_frame_info ; 
+		uint32 c=0;
+		uint32  * ptr_page_table;
+		for(uint32 i=(uint32)rlimit + PAGE_SIZE; i<KERNEL_HEAP_MAX; i+=PAGE_SIZE)
 		{
-			uint32 noOfPages=ROUNDUP(size,PAGE_SIZE)/PAGE_SIZE;
-			struct FrameInfo *ptr_frame_info ; 
-			int ret;
-			for(int i=0;i<noOfPages;i++)
+			if(get_frame_info(ptr_page_directory,i,&ptr_page_table)) //if its not 0 or NULL , so its allocated , then we should find somewhere else 
 			{
-				ret=allocate_frame(&ptr_frame_info); 
-				if(!i) firstPointer=(struct FrameInfo *) to_physical_address(ptr_frame_info);
-				if(ret==E_NO_MEM) return NULL;
-				ret=map_frame(ptr_page_directory,ptr_frame_info,i,0);
-				if(ret==E_NO_MEM) return NULL;
+				c=0; //reset the counter
+				continue; //if the current page exists , continue
 			}
+			c++; // to count the number of back-to-back free pages found
+			if(c==1) firstPointer=(struct FrameInfo *) i; //save the address of the first page
+			if(c==noOfPages) break; // if we got the number we need , no need for more search
 		}
+		if(c==noOfPages) // if we found the number of pages needed , we should start allocating
+		{
+			for (uint32 i=(uint32)firstPointer; i<=(uint32)firstPointer+(noOfPages-1)*PAGE_SIZE; i+=PAGE_SIZE)
+			{
+				if(allocate_frame(&ptr_frame_info)==E_NO_MEM) return NULL;
+				if(map_frame(ptr_page_directory,ptr_frame_info,i,PERM_WRITEABLE)==E_NO_MEM) return NULL;
+			}
 		return firstPointer;
+		}
 	}
+	return NULL;
 }
 
 void kfree(void* virtual_address)
