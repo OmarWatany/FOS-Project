@@ -1056,40 +1056,40 @@ int test_kfree_bestfirstfit()
 
 	correct = 1 ;
 	//Check memory access of non-freed areas in both allocators [10%]
-	cprintf("\n3. Check memory access of non-freed areas in both allocators [10%]\n");
-	{
-		//2 KB
-		ptr = (char*)ptr_allocations[3];
-		for (i = 0; i < lastIndices[3]; ++i)
-		{
-			sums[3] += ptr[i] ;
-		}
-		if (sums[3] != 3*lastIndices[3])	{ correct = 0; cprintf("3.1 kfree: invalid read after freeing some allocations\n"); }
-
-		//7 KB
-		ptr = (char*)ptr_allocations[4];
-		for (i = 0; i < lastIndices[4]; ++i)
-		{
-			sums[4] += ptr[i] ;
-		}
-		if (sums[4] != 4*lastIndices[4])	{ correct = 0; cprintf("3.2 kfree: invalid read after freeing some allocations\n"); }
-
-		//3 MB
-		ptr = (char*)ptr_allocations[5];
-		for (i = 0; i < lastIndices[5]; ++i)
-		{
-			sums[5] += ptr[i] ;
-		}
-		if (sums[5] != 5*lastIndices[5])	{ correct = 0; cprintf("3.3 kfree: invalid read after freeing some allocations\n"); }
-
-		//14 KB
-		ptr = (char*)ptr_allocations[7];
-		for (i = 0; i < lastIndices[7]; ++i)
-		{
-			sums[7] += ptr[i] ;
-		}
-		if (sums[7] != 7*lastIndices[7])	{ correct = 0; cprintf("3.4 kfree: invalid read after freeing some allocations\n"); }
-	}
+	 cprintf("\n3. Check memory access of non-freed areas in both allocators [10%]\n"); 
+	 { 
+	 	//2 KB 
+	 	ptr = (char*)ptr_allocations[3]; 
+	 	for (i = 0; i < lastIndices[3]; ++i) 
+	 	{ 
+	 		sums[3] += ptr[i] ; 
+	 	} 
+	 	if (sums[3] != 3*lastIndices[3])	{ correct = 0; cprintf("3.1 kfree: invalid read after freeing some allocations\n"); } 
+	
+	 	//7 KB 
+	 	ptr = (char*)ptr_allocations[4]; 
+	 	for (i = 0; i < lastIndices[4]; ++i) 
+	 	{ 
+	 		sums[4] += ptr[i] ; 
+	 	} 
+	 	if (sums[4] != 4*lastIndices[4])	{ correct = 0; cprintf("3.2 kfree: invalid read after freeing some allocations\n"); } 
+	
+	 	//3 MB 
+	 	ptr = (char*)ptr_allocations[5]; 
+	 	for (i = 0; i < lastIndices[5]; ++i) 
+	 	{ 
+	 		sums[5] += ptr[i] ; 
+	 	} 
+	 	if (sums[5] != 5*lastIndices[5])	{ correct = 0; cprintf("3.3 kfree: invalid read after freeing some allocations\n"); } 
+	
+	 	//14 KB 
+	 	ptr = (char*)ptr_allocations[7]; 
+	 	for (i = 0; i < lastIndices[7]; ++i) 
+	 	{ 
+	 		sums[7] += ptr[i] ; 
+	 	} 
+	 	if (sums[7] != 7*lastIndices[7])	{ correct = 0; cprintf("3.4 kfree: invalid read after freeing some allocations\n"); } 
+	 } 
 	if (correct)	eval+=10 ;
 
 	correct = 1 ;
