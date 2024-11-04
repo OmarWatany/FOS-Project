@@ -4,8 +4,8 @@
 #include <inc/dynamic_allocator.h>
 #include "memory_manager.h"
 
-#define PTE_FIRST 0x600 // if set then it's the first pointer
-#define IS_FIRST_PTR(PG_TABLE_ENT) (((PG_TABLE_ENT) & PTE_FIRST) == PTE_FIRST)
+#define PERM_FIRST 0x600 // if set then it's the first pointer
+#define IS_FIRST_PTR(PG_TABLE_ENT) (((PG_TABLE_ENT) & PERM_FIRST) == PERM_FIRST)
 
 //Initialize the dynamic allocator of kernel heap with the given start address, size & limit
 //All pages in the given range should be allocated
@@ -97,12 +97,12 @@ void* kmalloc(unsigned int size)
 				if(allocate_frame(&ptr_frame_info)==E_NO_MEM) return NULL;
 				if(va == (uint32)firstPointer)
 				{
-					if(map_frame(ptr_page_directory,ptr_frame_info,va,PERM_WRITEABLE|PTE_FIRST)==E_NO_MEM) return NULL;
+					if(map_frame(ptr_page_directory,ptr_frame_info,va,PERM_WRITEABLE|PERM_FIRST)==E_NO_MEM) return NULL;
 				}
+
 				else
 					if(map_frame(ptr_page_directory,ptr_frame_info,va,PERM_WRITEABLE)==E_NO_MEM) return NULL;
 			}
-			// set last for bytes of allocated size to number of pages 
 			return firstPointer;
 		}
 	}
@@ -125,31 +125,19 @@ void kfree(void* virtual_address)
 
 	uint32 * ptr_page_table = NULL;
 	struct FrameInfo * ptr_frame_info = get_frame_info(ptr_page_directory, (uint32)va, &ptr_page_table);
-#if 0
-	unmap_frame(ptr_page_directory, (uint32)(va));
-	if(!ptr_frame_info->references)
-		free_frame(ptr_frame_info);
-#else 
- // at least it passes 2.1 & 2.2
 
-	if(!ptr_frame_info) return; // i thing it should panic
-	unmap_frame(ptr_page_directory, (uint32)va);
-	free_frame(ptr_frame_info);
-	for(uint32 idx = 1; (uint32)(va+PAGE_SIZE*idx) < KERNEL_HEAP_MAX ; idx++)
+	if(!ptr_frame_info) return;
+	for(uint32 iter =(uint32)va; iter < KERNEL_HEAP_MAX ; iter+= PAGE_SIZE)
 	{
-		ptr_frame_info = get_frame_info(ptr_page_directory, ((uint32)va+PAGE_SIZE*idx), &ptr_page_table);
-		if(!ptr_frame_info || IS_FIRST_PTR(*ptr_page_table))
-		{
-			cprintf("idx %u \n",idx);
-			return;
-		}
-		unmap_frame(ptr_page_directory, ((uint32)va+PAGE_SIZE*idx));
+		ptr_frame_info = get_frame_info(ptr_page_directory, iter, &ptr_page_table);
+		uint32 page_table_entry = ptr_page_table[PTX(iter)]; // get the page entry itself so I can check the permission bits
+
+		if(iter==(uint32)va) goto HERE; //so I dont check if its the first
+		if(!ptr_frame_info || IS_FIRST_PTR(page_table_entry)) return;
+		HERE:
+			ptr_page_table[PTX(iter)]=ptr_page_table[PTX(iter)] & (~PERM_FIRST); // el tel3ab feh lazem teraga3o makano lama t5alas
+			unmap_frame(ptr_page_directory, iter); //does all the needed checks
 	}
-
-#endif
-	//you need to get the size of the given allocation using its address
-	//refer to the project presentation and documentation for details
-
 }
 
 unsigned int kheap_physical_address(unsigned int virtual_address)
