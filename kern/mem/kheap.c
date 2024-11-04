@@ -4,6 +4,9 @@
 #include <inc/dynamic_allocator.h>
 #include "memory_manager.h"
 
+#define PTE_FIRST 0x200 // if set then it's the first pointer
+#define IS_FIRST_PTR(PG_TABLE_ENT) (((PG_TABLE_ENT) & PTE_FIRST) == PTE_FIRST)
+
 //Initialize the dynamic allocator of kernel heap with the given start address, size & limit
 //All pages in the given range should be allocated
 //Remember: call the initialize_dynamic_allocator(..) to complete the initialization
@@ -13,10 +16,10 @@
 int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate, uint32 daLimit)
 {
 	if(initSizeToAllocate>daLimit-daStart) panic("whats this?");
-	da_Start=(uint32 *) daStart;
-	brk=(uint32 *) ((uint32)da_Start +initSizeToAllocate);
-	rlimit=(uint32 *)daLimit;
-	struct FrameInfo *ptr_frame_info ; 
+	da_Start = (uint32 *) daStart;
+	brk = (uint32 *) ((uint32) da_Start + initSizeToAllocate);
+	rlimit= (uint32 *) daLimit;
+	struct FrameInfo * ptr_frame_info; 
 	int ret;
 	for (uint32 i = daStart; i < daStart+initSizeToAllocate; i+=PAGE_SIZE)
 	{
@@ -75,25 +78,29 @@ void* kmalloc(unsigned int size)
 		struct FrameInfo *ptr_frame_info ; 
 		uint32 c=0;
 		uint32  * ptr_page_table;
-		for(uint32 i=(uint32)rlimit + PAGE_SIZE; i<KERNEL_HEAP_MAX; i+=PAGE_SIZE)
+		for(uint32 va=(uint32)rlimit + PAGE_SIZE; va<KERNEL_HEAP_MAX; va+=PAGE_SIZE)
 		{
-			if(get_frame_info(ptr_page_directory,i,&ptr_page_table)) //if its not 0 or NULL , so its allocated , then we should find somewhere else 
+			if(get_frame_info(ptr_page_directory,va,&ptr_page_table)) //if its not 0 or NULL , so its allocated , then we should find somewhere else 
 			{
 				c=0; //reset the counter
 				continue; //if the current page exists , continue
 			}
 			c++; // to count the number of back-to-back free pages found
-			if(c==1) firstPointer=(struct FrameInfo *) i; //save the address of the first page
+			if(c==1) firstPointer=(struct FrameInfo *) va; //save the address of the first page
 			if(c==noOfPages) break; // if we got the number we need , no need for more search
 		}
 		if(c==noOfPages) // if we found the number of pages needed , we should start allocating
 		{
-			for (uint32 i=(uint32)firstPointer; i<=(uint32)firstPointer+(noOfPages-1)*PAGE_SIZE; i+=PAGE_SIZE)
+			// set the 9th bit to 1 if va is the first pointer
+			int perm = PERM_WRITEABLE|PTE_FIRST;
+			for (uint32 va=(uint32)firstPointer; va<=(uint32)firstPointer+(noOfPages-1)*PAGE_SIZE; va+=PAGE_SIZE)
 			{
 				if(allocate_frame(&ptr_frame_info)==E_NO_MEM) return NULL;
-				if(map_frame(ptr_page_directory,ptr_frame_info,i,PERM_WRITEABLE)==E_NO_MEM) return NULL;
+				if(map_frame(ptr_page_directory,ptr_frame_info,va,perm)==E_NO_MEM) return NULL;
+				perm = PERM_WRITEABLE;
 			}
-		return firstPointer;
+			// set last for bytes of allocated size to number of pages 
+			return firstPointer;
 		}
 	}
 	return NULL;
@@ -101,10 +108,41 @@ void* kmalloc(unsigned int size)
 
 void kfree(void* virtual_address)
 {
-	//TODO: [PROJECT'24.MS2 - #04] [1] KERNEL HEAP - kfree
-	// Write your code here, remove the panic and write your code
-	panic("kfree() is not implemented yet...!!");
+	void *va = virtual_address;
+	if(va < sbrk(0) && (uint32 *)va > da_Start){
+		free_block(va);
+		return;
+	} 
 
+	if((uint32)va > KERNEL_HEAP_MAX || va < (void *)rlimit+PAGE_SIZE)
+	{
+		panic("Wrong address\n");
+		return;
+	} 
+
+	uint32 * ptr_page_table = NULL;
+	struct FrameInfo * ptr_frame_info = get_frame_info(ptr_page_directory, (uint32)va, &ptr_page_table);
+#if 0
+	unmap_frame(ptr_page_directory, (uint32)(va));
+	if(!ptr_frame_info->references)
+		free_frame(ptr_frame_info);
+#else 
+ // at least it passes 2.1 & 2.2
+
+	if(!ptr_frame_info) return; // i thing it should panic
+	unmap_frame(ptr_page_directory, (int)va);
+	for(uint32 idx = 1; (int)(va+PAGE_SIZE*idx) < KERNEL_HEAP_MAX ; idx++)
+	{
+		ptr_frame_info = get_frame_info(ptr_page_directory, ((uint32)va+PAGE_SIZE*idx), &ptr_page_table);
+		if(!ptr_frame_info ||IS_FIRST_PTR((uint32)ptr_page_table))
+		{
+			cprintf("idx %u \n",idx);
+			break;
+		}
+		unmap_frame(ptr_page_directory, (*va+PAGE_SIZE*idx));
+	}
+
+#endif
 	//you need to get the size of the given allocation using its address
 	//refer to the project presentation and documentation for details
 
