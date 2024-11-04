@@ -4,7 +4,7 @@
 #include <inc/dynamic_allocator.h>
 #include "memory_manager.h"
 
-#define PTE_FIRST 0x200 // if set then it's the first pointer
+#define PTE_FIRST 0x600 // if set then it's the first pointer
 #define IS_FIRST_PTR(PG_TABLE_ENT) (((PG_TABLE_ENT) & PTE_FIRST) == PTE_FIRST)
 
 //Initialize the dynamic allocator of kernel heap with the given start address, size & limit
@@ -92,12 +92,15 @@ void* kmalloc(unsigned int size)
 		if(c==noOfPages) // if we found the number of pages needed , we should start allocating
 		{
 			// set the 9th bit to 1 if va is the first pointer
-			int perm = PERM_WRITEABLE|PTE_FIRST;
 			for (uint32 va=(uint32)firstPointer; va<=(uint32)firstPointer+(noOfPages-1)*PAGE_SIZE; va+=PAGE_SIZE)
 			{
 				if(allocate_frame(&ptr_frame_info)==E_NO_MEM) return NULL;
-				if(map_frame(ptr_page_directory,ptr_frame_info,va,perm)==E_NO_MEM) return NULL;
-				perm = PERM_WRITEABLE;
+				if(va == (uint32)firstPointer)
+				{
+					if(map_frame(ptr_page_directory,ptr_frame_info,va,PERM_WRITEABLE|PTE_FIRST)==E_NO_MEM) return NULL;
+				}
+				else
+					if(map_frame(ptr_page_directory,ptr_frame_info,va,PERM_WRITEABLE)==E_NO_MEM) return NULL;
 			}
 			// set last for bytes of allocated size to number of pages 
 			return firstPointer;
@@ -130,16 +133,17 @@ void kfree(void* virtual_address)
  // at least it passes 2.1 & 2.2
 
 	if(!ptr_frame_info) return; // i thing it should panic
-	unmap_frame(ptr_page_directory, (int)va);
-	for(uint32 idx = 1; (int)(va+PAGE_SIZE*idx) < KERNEL_HEAP_MAX ; idx++)
+	unmap_frame(ptr_page_directory, (uint32)va);
+	free_frame(ptr_frame_info);
+	for(uint32 idx = 1; (uint32)(va+PAGE_SIZE*idx) < KERNEL_HEAP_MAX ; idx++)
 	{
 		ptr_frame_info = get_frame_info(ptr_page_directory, ((uint32)va+PAGE_SIZE*idx), &ptr_page_table);
-		if(!ptr_frame_info ||IS_FIRST_PTR((uint32)ptr_page_table))
+		if(!ptr_frame_info || IS_FIRST_PTR(*ptr_page_table))
 		{
 			cprintf("idx %u \n",idx);
-			break;
+			return;
 		}
-		unmap_frame(ptr_page_directory, (*va+PAGE_SIZE*idx));
+		unmap_frame(ptr_page_directory, ((uint32)va+PAGE_SIZE*idx));
 	}
 
 #endif
