@@ -169,14 +169,22 @@ unsigned int kheap_physical_address(unsigned int virtual_address)
 
 unsigned int kheap_virtual_address(unsigned int physical_address)
 {
-	// TODO: [PROJECT'24.MS2 - #06] [1] KERNEL HEAP - kheap_virtual_address
-	//  Write your code here, remove the panic and write your code
-	panic("kheap_virtual_address() is not implemented yet...!!");
-
-	// return the virtual address corresponding to given physical_address
-	// refer to the project presentation and documentation for details
-
-	// EFFICIENT IMPLEMENTATION ~O(1) IS REQUIRED ==================
+	uint32 offset = PGOFF(physical_address);
+	uint32 frame_address = physical_address & ~(0xFFF);
+	uint32 page_directory_entry = 0;
+	uint32* page_table = 0;
+	for(uint32 pdx=PDX(KERNEL_HEAP_START); pdx < 1024;pdx++)
+	{
+		page_directory_entry = ptr_page_directory[pdx];
+		if ((page_directory_entry & PERM_PRESENT) != PERM_PRESENT) continue;
+		page_table = STATIC_KERNEL_VIRTUAL_ADDRESS(EXTRACT_ADDRESS(page_directory_entry));
+		for(uint32 ptx=0; ptx < 1024;ptx++)
+		{
+			if((page_table[ptx] & ~(0xFFF)) == frame_address)
+				return (uint32)PGADDR(pdx,ptx,offset);
+		}
+	}
+	return 0;
 }
 //=================================================================================//
 //============================== BONUS FUNCTION ===================================//
