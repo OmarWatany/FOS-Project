@@ -4,8 +4,8 @@
 #include <inc/dynamic_allocator.h>
 #include "memory_manager.h"
 
-#define PERM_FIRST 0x600 // if set then it's the first pointer
-#define IS_FIRST_PTR(PG_TABLE_ENT) (((PG_TABLE_ENT) & PERM_FIRST) == PERM_FIRST)
+#define PTR_FIRST 0x200 // if set then it's the first pointer
+#define IS_FIRST_PTR(PG_TABLE_ENT) (((PG_TABLE_ENT) & PTR_FIRST) == PTR_FIRST)
 
 // Initialize the dynamic allocator of kernel heap with the given start address, size & limit
 // All pages in the given range should be allocated
@@ -108,7 +108,7 @@ void *kmalloc(unsigned int size)
 					return NULL;
 				if (va == (uint32)firstPointer)
 				{
-					if (map_frame(ptr_page_directory, ptr_frame_info, va, PERM_WRITEABLE | PERM_FIRST) == E_NO_MEM)
+					if (map_frame(ptr_page_directory, ptr_frame_info, va, PERM_WRITEABLE | PTR_FIRST) == E_NO_MEM)
 						return NULL;
 				}
 
@@ -151,21 +151,20 @@ void kfree(void *virtual_address)
 		if (!ptr_frame_info || IS_FIRST_PTR(page_table_entry))
 			return;
 	HERE:
-		ptr_page_table[PTX(iter)] = ptr_page_table[PTX(iter)] & (~PERM_FIRST); // el tel3ab feh lazem teraga3o makano lama t5alas
+		ptr_page_table[PTX(iter)] = ptr_page_table[PTX(iter)] & (~PTR_FIRST); // el tel3ab feh lazem teraga3o makano lama t5alas
 		unmap_frame(ptr_page_directory, iter);								   // does all the needed checks
 	}
 }
 
 unsigned int kheap_physical_address(unsigned int virtual_address)
 {
-	// TODO: [PROJECT'24.MS2 - #05] [1] KERNEL HEAP - kheap_physical_address
-	//  Write your code here, remove the panic and write your code
-	panic("kheap_physical_address() is not implemented yet...!!");
-
-	// return the physical address corresponding to given virtual_address
-	// refer to the project presentation and documentation for details
-
-	// EFFICIENT IMPLEMENTATION ~O(1) IS REQUIRED ==================
+	if ( virtual_address < KERNEL_HEAP_START || virtual_address > KERNEL_HEAP_MAX ) return 0;
+	uint32 *page_table;
+	struct FrameInfo *frame_info = get_frame_info(ptr_page_directory, (uint32)virtual_address, &page_table);
+	if(!frame_info) return 0;
+	uint32 offset = virtual_address % PAGE_SIZE;
+	uint32 physical_address = (to_frame_number(frame_info)*PAGE_SIZE) + offset;
+	return physical_address;
 }
 
 unsigned int kheap_virtual_address(unsigned int physical_address)
