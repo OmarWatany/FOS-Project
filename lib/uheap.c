@@ -85,7 +85,7 @@ void free(void* virtual_address)
 		}
 		noOfPages++;
 	}
-	sys_free_user_mem(va,noOfPages+PAGE_SIZE);
+	sys_free_user_mem((uint32)va,noOfPages*PAGE_SIZE);
 }
 
 
