@@ -120,7 +120,7 @@ struct Env {
 									//Its first page is ALWAYS used as a GUARD PAGE (i.e. unmapped)
 
 	//=======================================================================
-	//TODO: [PROJECT'24.MS2 - #10] [3] USER HEAP - add suitable code here
+	/*Dynamic allocator parameters*/
 	uint32 * da_Start;
 	uint32 * brk;
 	uint32 * rlimit;
