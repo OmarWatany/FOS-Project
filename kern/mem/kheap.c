@@ -60,10 +60,10 @@ void *sbrk(int numOfPages)
 	{
 		ret = allocate_frame(&ptr_frame_info);
 		if (ret == E_NO_MEM)
-			panic("we need more memory!");
+			return (void *)-1;
 		ret = map_frame(ptr_page_directory, ptr_frame_info, i, PERM_USER | PERM_WRITEABLE);
 		if (ret == E_NO_MEM)
-			panic("we need more memory!");
+			return (void *)-1;
 	}
 	return oldBrk;
 }
