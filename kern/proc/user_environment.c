@@ -907,11 +907,10 @@ void delete_user_kern_stack(struct Env* e)
 //===============================================
 void initialize_uheap_dynamic_allocator(struct Env* e, uint32 daStart, uint32 daLimit)
 {
-	//TODO: [PROJECT'24.MS2 - #10] [3] USER HEAP - initialize_uheap_dynamic_allocator
-	//Remember:
-	//	1) there's no initial allocations for the dynamic allocator of the user heap (=0)
-	//	2) call the initialize_dynamic_allocator(..) to complete the initialization
-	//panic("initialize_uheap_dynamic_allocator() is not implemented yet...!!");
+	e->da_Start=(uint32 *) daStart;
+	e->brk=e->da_Start;
+	e->rlimit=(uint32 *) daLimit;
+	initialize_dynamic_allocator(daStart,0);
 }
 
 //==============================================================
