@@ -181,16 +181,17 @@ void allocate_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 //=====================================
 void free_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 {
-	/*====================================*/
-	/*Remove this line before start coding*/
-//	inctst();
-//	return;
-	/*====================================*/
+	uint32 * ptr_page_table;
+	get_page_table(ptr_page_directory,virtual_address,&ptr_page_table);
 
-	//TODO: [PROJECT'24.MS2 - #15] [3] USER HEAP [KERNEL SIDE] - free_user_mem
-	// Write your code here, remove the panic and write your code
-	panic("free_user_mem() is not implemented yet...!!");
-
+	uint32 noOfPages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
+	struct Env* env = get_cpu_proc();
+	for (uint32 va = (uint32)virtual_address; va <= (uint32)va + (noOfPages - 1) * PAGE_SIZE; va += PAGE_SIZE)
+	{
+		ptr_page_table[PTX(va)]=ptr_page_table[PTX(va)] & ~PTR_TAKEN & ~PERM_WRITEABLE & ~PTR_FIRST;
+		pf_remove_env_page(env,va);
+		env_page_ws_invalidate(env,va); // this lines assumes that all of them are in the working set , which is most probably not true 
+	}
 
 	//TODO: [PROJECT'24.MS2 - BONUS#3] [3] USER HEAP [KERNEL SIDE] - O(1) free_user_mem
 }

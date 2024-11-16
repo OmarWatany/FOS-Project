@@ -133,7 +133,6 @@ void kfree(void *virtual_address)
 	if ((uint32)va > KERNEL_HEAP_MAX || va < (void *)rlimit + PAGE_SIZE)
 	{
 		panic("Wrong address\n");
-		return;
 	}
 
 	uint32 *ptr_page_table = NULL;

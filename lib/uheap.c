@@ -65,9 +65,27 @@ void* malloc(uint32 size)
 //=================================
 void free(void* virtual_address)
 {
-	//TODO: [PROJECT'24.MS2 - #14] [3] USER HEAP [USER SIDE] - free()
-	// Write your code here, remove the panic and write your code
-	panic("free() is not implemented yet...!!");
+	void *va = virtual_address;
+	if (va < sbrk(0) && (uint32 *)va > myEnv->da_Start)
+	{
+		free_block(va);
+		return;
+	}
+
+	if ((uint32)va > USER_HEAP_MAX || va < (void *)(myEnv->rlimit) + PAGE_SIZE)
+	{
+		panic("invalid address");
+	}
+	uint32 noOfPages=1;
+	for(uint32 iter=(uint32)va+ PAGE_SIZE;iter<USER_HEAP_MAX;iter+=PAGE_SIZE)
+	{
+		if (IS_FIRST_PTR(myEnv->env_page_directory[PTX(va)]) | !IS_TAKEN(myEnv->env_page_directory[PTX(va)])) // if its taken or not
+		{
+			break;
+		}
+		noOfPages++;
+	}
+	sys_free_user_mem(va,noOfPages+PAGE_SIZE);
 }
 
 
