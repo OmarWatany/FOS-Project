@@ -295,7 +295,6 @@ void sys_utilities(char* utilityName, int value)
 }
 
 
-//TODO: [PROJECT'24.MS1 - #02] [2] SYSTEM CALLS - Implement these system calls
 void* sys_sbrk(int increment)
 {
 	return (void *)syscall(SYS_sbrk, increment, 0, 0, 0, 0);
