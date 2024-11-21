@@ -23,10 +23,9 @@ inline struct WorkingSetElement* env_page_ws_list_create_element(struct Env* e, 
 	  return NULL;
 	}
 	//Initialize the element with the given virtual address
-	new_element->virtual_address = virtual_address;
-
-	LIST_INSERT_TAIL(&(e->page_WS_list), new_element);
-	/* e->page_last_WS_element = new_element; */
+	*new_element = (struct WorkingSetElement){
+		.virtual_address = virtual_address,
+	};
 	return new_element;
 }
 
