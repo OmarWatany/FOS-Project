@@ -254,13 +254,9 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 		int x= pf_read_env_page(faulted_env, (void*) fault_va);
 		if(x == E_PAGE_NOT_EXIST_IN_PF)
 		{
-			if(!(
-					fault_va >= USTACKBOTTOM &&
-					fault_va < USTACKTOP &&
-					fault_va >= USER_HEAP_START &&
-					fault_va < KERNEL_HEAP_MAX
-				))
+			if(!((fault_va >= USTACKBOTTOM && fault_va < USTACKTOP) || (fault_va >= USER_HEAP_START &&fault_va < USER_HEAP_MAX)))
 			{
+				cprintf("%u\n",fault_va);
 				panic("Page not found and not part of stack or heap");
 				env_exit();
 				return;

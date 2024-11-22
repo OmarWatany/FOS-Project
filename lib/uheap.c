@@ -26,19 +26,24 @@ void* malloc(uint32 size)
 	//DON'T CHANGE THIS CODE========================================
 	if (size == 0) return NULL ;
 	//==============================================================
-
+	cprintf("inside malloc\n\n");
 	// if its less or equal to 2KB , then refer it to the block allocator
-	if (size <= DYN_ALLOC_MAX_BLOCK_SIZE)
+	if (size+8 <= DYN_ALLOC_MAX_BLOCK_SIZE)
 		return alloc_block_FF(size);
+	cprintf("inside page allocator\n\n");
+	uint32 * ptr_page_table;
 	uint32 firstPointer;
 	if (sys_isUHeapPlacementStrategyFIRSTFIT())
 	{
 		
 		uint32 noOfPages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
+		cprintf("noOfPages=%u\n\n",noOfPages);
 		uint32 c = 0;
+		cprintf("11\n\n");
 		for (uint32 va = (uint32)(myEnv->rlimit) + PAGE_SIZE; va < USER_HEAP_MAX; va += PAGE_SIZE) //searching for enough space with FF
 		{
-			if (IS_TAKEN(myEnv->env_page_directory[PTX(va)])) // if its taken or not
+			
+			if ( IS_TAKEN(va)) // if its taken or not
 			{
 				c = 0;	  // reset the counter
 				continue; // if its taken , continue
@@ -46,12 +51,20 @@ void* malloc(uint32 size)
 			c++; // to count the number of back-to-back free pages found
 			if (c == 1)
 				firstPointer = va; // save the address of the first page
+
+			cprintf("c=%u\n",c);
 			if (c == noOfPages)
 				break; // if we got the number we need , no need for more search
 		}
+	cprintf("22\n\n");
 		if (c == noOfPages) // if we found the number of pages needed , call the system call
 		{
-			sys_allocate_user_mem(firstPointer,size);
+			cprintf("found noOfPages\n\n");
+			cprintf("%u\n",firstPointer);
+			cprintf("%u\n",USER_HEAP_MAX);
+			cprintf("%u\n",USER_HEAP_START);
+			sys_allocate_user_mem((uint32)(myEnv->rlimit) + PAGE_SIZE,size);
+			cprintf("here?");
 			return (void* )firstPointer;
 		}
 	}
@@ -79,7 +92,7 @@ void free(void* virtual_address)
 	uint32 noOfPages=1;
 	for(uint32 iter=(uint32)va+ PAGE_SIZE;iter<USER_HEAP_MAX;iter+=PAGE_SIZE)
 	{
-		if (IS_FIRST_PTR(myEnv->env_page_directory[PTX(va)]) | !IS_TAKEN(myEnv->env_page_directory[PTX(va)])) // if its taken or not
+		if (IS_FIRST_PTR(myEnv->env_page_directory[PDX(va)]) | !IS_TAKEN(myEnv->env_page_directory[PDX(va)])) // if its taken or not
 		{
 			break;
 		}
