@@ -864,24 +864,30 @@ uint32 __cur_k_stk = KERNEL_HEAP_START;
 //===========================================================
 void* create_user_kern_stack(uint32* ptr_user_page_directory)
 {
+
 #if USE_KHEAP
-	//TODO: [PROJECT'24.MS2 - #07] [2] FAULT HANDLER I - create_user_kern_stack
-	// Write your code here, remove the panic and write your code
-	panic("create_user_kern_stack() is not implemented yet...!!");
+  void* kern_stack = kmalloc(KERNEL_STACK_SIZE);
+  if (kern_stack == NULL) {
+    panic("create_user_kern_stack: Failed to allocate kernel stack");
+    return NULL;
+  }
 
-	//allocate space for the user kernel stack.
-	//remember to leave its bottom page as a GUARD PAGE (i.e. not mapped)
-	//return a pointer to the start of the allocated space (including the GUARD PAGE)
-	//On failure: panic
-
-
+	unmap_frame(ptr_user_page_directory,(uint32)kern_stack);
+  return kern_stack;
 #else
-	if (KERNEL_HEAP_MAX - __cur_k_stk < KERNEL_STACK_SIZE)
-		panic("Run out of kernel heap!! Unable to create a kernel stack for the process. Can't create more processes!");
-	void* kstack = (void*) __cur_k_stk;
-	__cur_k_stk += KERNEL_STACK_SIZE;
-	return kstack ;
-//	panic("KERNEL HEAP is OFF! user kernel stack is not supported");
+  if (KERNEL_HEAP_MAX - __cur_k_stk < KERNEL_STACK_SIZE)
+      panic("Run out of kernel heap!! Unable to create a kernel stack for the process. Can't create more processes!");
+
+  void* kstack = (void*) __cur_k_stk;
+  __cur_k_stk += KERNEL_STACK_SIZE;
+
+  // Calculate the address of the guard page (the bottom page)
+  void* guard_page = kstack;
+
+  // Mark the guard page as not present in the page table
+  unmap_frame(ptr_user_page_directory, guard_page);
+
+  return kstack;
 #endif
 }
 

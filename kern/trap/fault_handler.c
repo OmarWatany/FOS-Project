@@ -151,6 +151,31 @@ void fault_handler(struct Trapframe *tf)
 			//TODO: [PROJECT'24.MS2 - #08] [2] FAULT HANDLER I - Check for invalid pointers
 			//(e.g. pointing to unmarked user heap page, kernel or wrong access rights),
 			//your code is here
+			if(fault_va >= USER_HEAP_START && fault_va <= USER_HEAP_MAX)
+			{
+				int perms = pt_get_page_permissions(faulted_env->env_page_directory, fault_va);
+				if((perms & PERM_USER) != PERM_USER)
+				{
+					// in user heap and unmakrded
+					panic("Invalid pointer: unmarked Page with in user heap");
+					env_exit();
+				}
+				if ((perms & PERM_WRITEABLE) == PERM_WRITEABLE) {
+					panic("Invalid pointer: Page with write permissions");
+					env_exit();
+				}
+				if ((perms & PERM_PRESENT) != PERM_PRESENT) {
+					panic("Invalid pointer: Not present Page");
+					env_exit();
+				}
+			}
+
+			if (fault_va > USER_LIMIT)
+			{
+				panic("Invalid pointer: Kernel address");
+				env_exit();
+			}
+
 
 			/*============================================================================================*/
 		}
@@ -174,8 +199,7 @@ void fault_handler(struct Trapframe *tf)
 			__page_fault_handler_with_buffering(faulted_env, fault_va);
 		}
 		else
-		{
-			//page_fault_handler(faulted_env, fault_va);
+		{ 
 			page_fault_handler(faulted_env, fault_va);
 		}
 		//		cprintf("\nPage working set AFTER fault handler...\n");
@@ -225,15 +249,55 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 	if(wsSize < (faulted_env->page_WS_max_size))
 	{
 		//cprintf("PLACEMENT=========================WS Size = %d\n", wsSize );
-		//TODO: [PROJECT'24.MS2 - #09] [2] FAULT HANDLER I - Placement
-		// Write your code here, remove the panic and write your code
-		panic("page_fault_handler().PLACEMENT is not implemented yet...!!");
+		// Placement
+		// Allocate space for the faulted page
+		int x= pf_read_env_page(faulted_env, (void*) fault_va);
+		if(x == E_PAGE_NOT_EXIST_IN_PF)
+		{
+			if(!(
+					fault_va >= USTACKBOTTOM &&
+					fault_va < USTACKTOP &&
+					fault_va >= USER_HEAP_START &&
+					fault_va < KERNEL_HEAP_MAX
+				))
+			{
+				panic("Page not found and not part of stack or heap");
+				env_exit();
+				return;
+			}
+			uint32 *page_table;
+			struct FrameInfo *frame_info = get_frame_info(faulted_env->env_page_directory, (uint32)fault_va, &page_table);
+			int ret = allocate_frame(&frame_info);
 
-		//refer to the project presentation and documentation for details
+			if (!frame_info)
+			{
+				panic("Page allocation failed");
+				env_exit();
+				return;
+			}
+
+			map_frame(faulted_env->env_page_directory, frame_info, fault_va, PERM_PRESENT | PERM_WRITEABLE | PERM_USER);
+		}
+
+#if USE_KHEAP
+			struct WorkingSetElement *new_element = env_page_ws_list_create_element(faulted_env,fault_va);
+			LIST_INSERT_TAIL(&(faulted_env->page_WS_list), new_element);
+			pt_set_page_permissions(faulted_env->env_page_directory,new_element->virtual_address,PERM_PRESENT | PERM_USED,0);
+			if(wsSize+1 < (faulted_env->page_WS_max_size)){
+				faulted_env->page_last_WS_element = NULL;
+			}
+			else{
+				faulted_env->page_last_WS_element = LIST_FIRST(&(faulted_env->page_WS_list));
+			}
+#else
+			faulted_env->page_WS[iWS].virtual_address = fault_va;
+			faulted_env->page_WS[iWS].empty = 0;
+			faulted_env->page_last_WS_index = (iWS + 1) % faulted_env->page_WS_max_size;
+#endif
 	}
 	else
 	{
-		//cprintf("REPLACEMENT=========================WS Size = %d\n", wsSize );
+		cprintf("REPLACEMENT=========================WS Size = %d\n", wsSize );
 		//refer to the project presentation and documentation for details
 		//TODO: [PROJECT'24.MS3] [2] FAULT HANDLER II - Replacement
 		// Write your code here, remove the panic and write your code
