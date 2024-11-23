@@ -79,7 +79,7 @@ uint32 	sys_isUHeapPlacementStrategyBESTFIT();
 uint32 	sys_isUHeapPlacementStrategyNEXTFIT();
 uint32 	sys_isUHeapPlacementStrategyWORSTFIT();
 void 	sys_set_uheap_strategy(uint32 heapStrategy);
-
+bool    sys_is_user_page_taken(volatile uint32 * env_page_directory, uint32 va,bool *f);
 //Page File
 int 	sys_pf_calculate_allocated_pages(void);
 

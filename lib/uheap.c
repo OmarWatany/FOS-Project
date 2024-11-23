@@ -39,11 +39,12 @@ void* malloc(uint32 size)
 		uint32 noOfPages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
 		cprintf("noOfPages=%u\n\n",noOfPages);
 		uint32 c = 0;
+		bool *f=NULL;
 		cprintf("11\n\n");
 		for (uint32 va = (uint32)(myEnv->rlimit) + PAGE_SIZE; va < USER_HEAP_MAX; va += PAGE_SIZE) //searching for enough space with FF
 		{
 			// THE PROBLEM IS IN THIS CONDITION
-			if ( IS_TAKEN(va)) // if its taken or not
+			if (sys_is_user_page_taken((myEnv->env_page_directory),va,f)) // if its taken or not
 			{
 				c = 0;	  // reset the counter
 				continue; // if its taken , continue
@@ -63,7 +64,7 @@ void* malloc(uint32 size)
 			cprintf("%u\n",firstPointer);
 			cprintf("%u\n",USER_HEAP_MAX);
 			cprintf("%u\n",USER_HEAP_START);
-			sys_allocate_user_mem((uint32)(myEnv->rlimit) + PAGE_SIZE,size);
+			sys_allocate_user_mem(firstPointer,size);
 			cprintf("here?");
 			return (void* )firstPointer;
 		}
