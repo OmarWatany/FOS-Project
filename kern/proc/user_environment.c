@@ -866,13 +866,13 @@ void* create_user_kern_stack(uint32* ptr_user_page_directory)
 {
 
 #if USE_KHEAP
-  void* kern_stack = kmalloc(KERNEL_STACK_SIZE);
+  struct Env * kern_stack = (struct Env *)kmalloc(KERNEL_STACK_SIZE);
   if (kern_stack == NULL) {
     panic("create_user_kern_stack: Failed to allocate kernel stack");
     return NULL;
   }
 
-	unmap_frame(ptr_user_page_directory,(uint32)kern_stack);
+	unmap_frame(ptr_user_page_directory,(uint32)&(kern_stack->kstack));
   return kern_stack;
 #else
   if (KERNEL_HEAP_MAX - __cur_k_stk < KERNEL_STACK_SIZE)

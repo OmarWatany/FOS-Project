@@ -11,6 +11,7 @@
 #include <kern/cpu/cpu.h>
 #include <kern/disk/pagefile_manager.h>
 #include <kern/mem/memory_manager.h>
+#define PTR_TAKEN 0x400 // if set then it's the first pointer
 
 //2014 Test Free(): Set it to bypass the PAGE FAULT on an instruction with this length and continue executing the next one
 // 0 means don't bypass the PAGE FAULT
@@ -147,35 +148,16 @@ void fault_handler(struct Trapframe *tf)
 	{
 		if (userTrap)
 		{
-			/*============================================================================================*/
-			//TODO: [PROJECT'24.MS2 - #08] [2] FAULT HANDLER I - Check for invalid pointers
-			//(e.g. pointing to unmarked user heap page, kernel or wrong access rights),
-			//your code is here
-			if(fault_va >= USER_HEAP_START && fault_va <= USER_HEAP_MAX)
+			uint32 perms = pt_get_page_permissions(faulted_env->env_page_directory, fault_va);
+			if(fault_va >= USER_HEAP_START && fault_va < USER_HEAP_MAX && ((perms & PTR_TAKEN) != PTR_TAKEN))
 			{
-				int perms = pt_get_page_permissions(faulted_env->env_page_directory, fault_va);
-				if((perms & PERM_USER) != PERM_USER)
-				{
-					// in user heap and unmakrded
-					panic("Invalid pointer: unmarked Page with in user heap");
+					// in user heap and unmarked
 					env_exit();
-				}
-				if ((perms & PERM_WRITEABLE) == PERM_WRITEABLE) {
-					panic("Invalid pointer: Page with write permissions");
-					env_exit();
-				}
-				if ((perms & PERM_PRESENT) != PERM_PRESENT) {
-					panic("Invalid pointer: Not present Page");
-					env_exit();
-				}
 			}
-
-			if (fault_va > USER_LIMIT)
+			else if(((perms & PERM_PRESENT) == PERM_PRESENT) &&(((perms & PERM_WRITEABLE) != PERM_WRITEABLE) || (fault_va >= USER_LIMIT) ) )
 			{
-				panic("Invalid pointer: Kernel address");
 				env_exit();
 			}
-
 
 			/*============================================================================================*/
 		}
@@ -256,29 +238,26 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 		{
 			if(!((fault_va >= USTACKBOTTOM && fault_va < USTACKTOP) || (fault_va >= USER_HEAP_START &&fault_va < USER_HEAP_MAX)))
 			{
-				cprintf("%u\n",fault_va);
-				panic("Page not found and not part of stack or heap");
 				env_exit();
 				return;
 			}
 			uint32 *page_table;
-			struct FrameInfo *frame_info = get_frame_info(faulted_env->env_page_directory, (uint32)fault_va, &page_table);
+			struct FrameInfo *frame_info;
 			int ret = allocate_frame(&frame_info);
 
-			if (!frame_info)
+			if (ret==E_NO_MEM)
 			{
-				panic("Page allocation failed");
 				env_exit();
 				return;
 			}
 
-			map_frame(faulted_env->env_page_directory, frame_info, fault_va, PERM_PRESENT | PERM_WRITEABLE | PERM_USER);
+			map_frame(faulted_env->env_page_directory, frame_info, fault_va, PERM_WRITEABLE | PERM_USER);
 		}
 
 #if USE_KHEAP
 			struct WorkingSetElement *new_element = env_page_ws_list_create_element(faulted_env,fault_va);
 			LIST_INSERT_TAIL(&(faulted_env->page_WS_list), new_element);
-			pt_set_page_permissions(faulted_env->env_page_directory,new_element->virtual_address,PERM_PRESENT | PERM_USED,0);
+			pt_set_page_permissions(faulted_env->env_page_directory,new_element->virtual_address,PERM_PRESENT | PERM_USER,0);
 			if(wsSize+1 < (faulted_env->page_WS_max_size)){
 				faulted_env->page_last_WS_element = NULL;
 			}

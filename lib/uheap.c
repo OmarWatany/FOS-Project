@@ -42,7 +42,7 @@ void* malloc(uint32 size)
 		cprintf("11\n\n");
 		for (uint32 va = (uint32)(myEnv->rlimit) + PAGE_SIZE; va < USER_HEAP_MAX; va += PAGE_SIZE) //searching for enough space with FF
 		{
-			
+			// THE PROBLEM IS IN THIS CONDITION
 			if ( IS_TAKEN(va)) // if its taken or not
 			{
 				c = 0;	  // reset the counter

@@ -165,7 +165,6 @@ void allocate_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 		ptr_page_table=(uint32 *) create_page_table(e->env_page_directory,virtual_address);
 	//set the first entry's permission
 	ptr_page_table[PTX(virtual_address)]=ptr_page_table[PTX(virtual_address)] | PTR_FIRST | PTR_TAKEN | PERM_WRITEABLE | PERM_USER;
-	virtual_address=virtual_address|PTR_TAKEN;
 	cprintf("2\n\n");
 	uint32 noOfPages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
 	for (uint32 va = (uint32)virtual_address+PAGE_SIZE; va <= (uint32)va + (noOfPages - 1) * PAGE_SIZE; va += PAGE_SIZE)
