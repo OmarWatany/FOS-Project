@@ -295,7 +295,6 @@ void sys_utilities(char* utilityName, int value)
 }
 
 
-//TODO: [PROJECT'24.MS1 - #02] [2] SYSTEM CALLS - Implement these system calls
 void* sys_sbrk(int increment)
 {
 	return (void *)syscall(SYS_sbrk, increment, 0, 0, 0, 0);
@@ -303,11 +302,15 @@ void* sys_sbrk(int increment)
 
 void sys_free_user_mem(uint32 virtual_address, uint32 size)
 {
-	syscall(SYS_allocate_user_mem, (uint32)virtual_address, (uint32)size, 0, 0, 0);
+	syscall(SYS_free_user_mem, (uint32)virtual_address, (uint32)size, 0, 0, 0);
 }
 
 void sys_allocate_user_mem(uint32 virtual_address, uint32 size)
 {
-	syscall(SYS_free_user_mem, (uint32)virtual_address, (uint32)size, 0, 0, 0);
+	syscall(SYS_allocate_user_mem, (uint32)virtual_address, (uint32)size, 0, 0, 0);
 }
 
+bool sys_is_user_page_taken(volatile uint32 * env_page_directory, uint32 va,bool *f)
+{
+	return syscall(SYS_is_user_page_taken, (uint32)env_page_directory, (uint32)va,(uint32)f , 0, 0);
+}

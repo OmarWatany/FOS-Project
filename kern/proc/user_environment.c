@@ -866,13 +866,13 @@ void* create_user_kern_stack(uint32* ptr_user_page_directory)
 {
 
 #if USE_KHEAP
-  void* kern_stack = kmalloc(KERNEL_STACK_SIZE);
+  struct Env * kern_stack = (struct Env *)kmalloc(KERNEL_STACK_SIZE);
   if (kern_stack == NULL) {
     panic("create_user_kern_stack: Failed to allocate kernel stack");
     return NULL;
   }
 
-	unmap_frame(ptr_user_page_directory,(uint32)kern_stack);
+	unmap_frame(ptr_user_page_directory,(uint32)&(kern_stack->kstack));
   return kern_stack;
 #else
   if (KERNEL_HEAP_MAX - __cur_k_stk < KERNEL_STACK_SIZE)
@@ -913,11 +913,10 @@ void delete_user_kern_stack(struct Env* e)
 //===============================================
 void initialize_uheap_dynamic_allocator(struct Env* e, uint32 daStart, uint32 daLimit)
 {
-	//TODO: [PROJECT'24.MS2 - #10] [3] USER HEAP - initialize_uheap_dynamic_allocator
-	//Remember:
-	//	1) there's no initial allocations for the dynamic allocator of the user heap (=0)
-	//	2) call the initialize_dynamic_allocator(..) to complete the initialization
-	//panic("initialize_uheap_dynamic_allocator() is not implemented yet...!!");
+	e->da_Start=(uint32 *) daStart;
+	e->brk=e->da_Start;
+	e->rlimit=(uint32 *) daLimit;
+	initialize_dynamic_allocator(daStart,0);
 }
 
 //==============================================================

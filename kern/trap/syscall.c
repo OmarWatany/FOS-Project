@@ -18,6 +18,8 @@
 #include <kern/mem/shared_memory_manager.h>
 #include <kern/tests/utilities.h>
 #include <kern/tests/test_working_set.h>
+#define PTR_TAKEN 0x400 // if set then it's the first pointer
+#define IS_TAKEN(PG_TABLE_ENT) (((PG_TABLE_ENT) & PTR_TAKEN) == PTR_TAKEN)
 
 extern uint8 bypassInstrLength ;
 struct Env* cur_env ;
@@ -320,7 +322,6 @@ void sys_free_user_mem(uint32 virtual_address, uint32 size)
 void sys_allocate_user_mem(uint32 virtual_address, uint32 size)
 {
 	uint32 va = virtual_address + size;
-	//TODO: [PROJECT'24.MS1 - #03] [2] SYSTEM CALLS - Params Validation
 	if( virtual_address == 0 || va == 0 || va >= USER_HEAP_MAX || va < USER_HEAP_START ){
 		env_exit();
 	} else
@@ -330,12 +331,22 @@ void sys_allocate_user_mem(uint32 virtual_address, uint32 size)
 
 void sys_allocate_chunk(uint32 virtual_address, uint32 size, uint32 perms)
 {
-	//TODO: [PROJECT'24.MS1 - #03] [2] SYSTEM CALLS - Params Validation
-
 	allocate_chunk(cur_env->env_page_directory, virtual_address, size, perms);
 	return;
 }
 
+bool sys_is_user_page_taken(volatile uint32 * env_page_directory, uint32 va,bool *f)
+{
+	uint32 * ptr_page_table;
+	get_page_table((uint32 *) env_page_directory,va,&ptr_page_table);
+	if(!ptr_page_table)
+		{return 0;}
+	if(IS_TAKEN(ptr_page_table[PTX(va)]))
+		{return 1;}
+	else 
+		{return 0;}
+	return 0;
+}
 //2014
 void sys_move_user_mem(uint32 src_virtual_address, uint32 dst_virtual_address, uint32 size)
 {
@@ -690,6 +701,9 @@ uint32 syscall(uint32 syscallno, uint32 a1, uint32 a2, uint32 a3, uint32 a4, uin
 	case SYS_free_user_mem:
 		sys_free_user_mem((int)a1, (int)a2);
 		return  0;
+
+	case SYS_is_user_page_taken:
+		return  (uint32)sys_is_user_page_taken((volatile uint32 *)a1, (uint32)a2,(bool *)a3);
 
 	case NSYSCALLS:
 		return 	-E_INVAL;

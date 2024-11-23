@@ -60,10 +60,10 @@ void *sbrk(int numOfPages)
 	{
 		ret = allocate_frame(&ptr_frame_info);
 		if (ret == E_NO_MEM)
-			panic("we need more memory!");
+			return (void *)-1;
 		ret = map_frame(ptr_page_directory, ptr_frame_info, i, PERM_USER | PERM_WRITEABLE);
 		if (ret == E_NO_MEM)
-			panic("we need more memory!");
+			return (void *)-1;
 	}
 	return oldBrk;
 }
@@ -133,7 +133,6 @@ void kfree(void *virtual_address)
 	if ((uint32)va > KERNEL_HEAP_MAX || va < (void *)rlimit + PAGE_SIZE)
 	{
 		panic("Wrong address\n");
-		return;
 	}
 
 	uint32 *ptr_page_table = NULL;

@@ -12,6 +12,9 @@
 #include "memory_manager.h"
 #include <inc/queue.h>
 
+#define PTR_FIRST 0x200 // if set then it's the first pointer
+#define PTR_TAKEN 0x400 // if set then it's the first pointer
+
 //extern void inctst();
 
 /******************************/
@@ -130,20 +133,22 @@ void* sys_sbrk(int numOfPages)
 	 * NOTES:
 	 * 	1) As in real OS, allocate pages lazily. While sbrk moves the segment break, pages are not allocated
 	 * 		until the user program actually tries to access data in its heap (i.e. will be allocated via the fault handler).
-	 * 	2) Allocating additional pages for a process’ heap will fail if, for example, the free frames are exhausted
+	 * 	2) Allocating additional pages for a process' heap will fail if, for example, the free frames are exhausted
 	 * 		or the break exceed the limit of the dynamic allocator. If sys_sbrk fails, the net effect should
 	 * 		be that sys_sbrk returns (void*) -1 and that the segment break and the process heap are unaffected.
 	 * 		You might have to undo any operations you have done so far in this case.
 	 */
 
-	//TODO: [PROJECT'24.MS2 - #11] [3] USER HEAP - sys_sbrk
-	/*====================================*/
-	/*Remove this line before start coding*/
-	return (void*)-1 ;
-	/*====================================*/
 	struct Env* env = get_cpu_proc(); //the current running Environment to adjust its break limit
-
-
+	// if requested size is 0 , return the old break limit
+	if (!numOfPages)
+		return env->brk;
+	// if break exceeded the hard limit , return -1
+	if (env->brk + numOfPages * PAGE_SIZE > env->rlimit)
+		return (void *)-1;
+	uint32 *oldBrk = env->brk;
+	env->brk += numOfPages * PAGE_SIZE / 4;
+	return oldBrk;
 }
 
 //=====================================
@@ -151,15 +156,28 @@ void* sys_sbrk(int numOfPages)
 //=====================================
 void allocate_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 {
-	/*====================================*/
-	/*Remove this line before start coding*/
-//	inctst();
-//	return;
-	/*====================================*/
+	cprintf("inside the allocate sys call\n\n");
+	uint32 * ptr_page_table;
+	//check if there isn't a page table ready , create a new one
+	get_page_table(e->env_page_directory,virtual_address,&ptr_page_table);
+	cprintf("1\n\n");
+	if(!ptr_page_table) 
+		ptr_page_table=(uint32 *) create_page_table(e->env_page_directory,virtual_address);
+	//set the first entry's permission
+	ptr_page_table[PTX(virtual_address)]=ptr_page_table[PTX(virtual_address)] | PTR_FIRST | PTR_TAKEN | PERM_WRITEABLE | PERM_USER;
+	cprintf("2\n\n");
+	uint32 i=0;
+	uint32 noOfPages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
+	for (uint32 va = (uint32)virtual_address+PAGE_SIZE; va <= (uint32)virtual_address+PAGE_SIZE + (noOfPages - 1) * PAGE_SIZE; va += PAGE_SIZE)
+	{
+		get_page_table(e->env_page_directory,va,&ptr_page_table);
+		if(!ptr_page_table) 
+			ptr_page_table=(uint32 *) create_page_table(e->env_page_directory,va);
+		cprintf("%u\n\n",i++);
+		ptr_page_table[PTX(va)]=ptr_page_table[PTX(va)] | PTR_TAKEN | PERM_WRITEABLE | PERM_USER;
+	}
+	cprintf("3\n\n");
 
-	//TODO: [PROJECT'24.MS2 - #13] [3] USER HEAP [KERNEL SIDE] - allocate_user_mem()
-	// Write your code here, remove the panic and write your code
-	panic("allocate_user_mem() is not implemented yet...!!");
 }
 
 //=====================================
@@ -167,16 +185,17 @@ void allocate_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 //=====================================
 void free_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 {
-	/*====================================*/
-	/*Remove this line before start coding*/
-//	inctst();
-//	return;
-	/*====================================*/
+	uint32 * ptr_page_table;
+	get_page_table(e->env_page_directory,virtual_address,&ptr_page_table);
 
-	//TODO: [PROJECT'24.MS2 - #15] [3] USER HEAP [KERNEL SIDE] - free_user_mem
-	// Write your code here, remove the panic and write your code
-	panic("free_user_mem() is not implemented yet...!!");
-
+	uint32 noOfPages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
+	struct Env* env = get_cpu_proc();
+	for (uint32 va = (uint32)virtual_address; va <= (uint32)va + (noOfPages - 1) * PAGE_SIZE; va += PAGE_SIZE)
+	{
+		ptr_page_table[PTX(va)]=ptr_page_table[PTX(va)] & ~PTR_TAKEN & ~PERM_WRITEABLE & ~PTR_FIRST;
+		pf_remove_env_page(env,va);
+		env_page_ws_invalidate(env,va); // this lines assumes that all of them are in the working set , which is most probably not true 
+	}
 
 	//TODO: [PROJECT'24.MS2 - BONUS#3] [3] USER HEAP [KERNEL SIDE] - O(1) free_user_mem
 }
