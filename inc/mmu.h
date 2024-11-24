@@ -60,6 +60,8 @@
 #define PERM_PRESENT	0x001	// Present
 #define PERM_WRITEABLE	0x002	// Writeable
 #define PERM_USER		0x004	// User
+#define PTR_FIRST 0x200 // if set then it's the first pointer
+#define PTR_TAKEN 0x400 // if set then it's the first pointer
 #define PTE_PWT		0x008	// Write-Through
 #define PTE_PCD		0x010	// Cache-Disable
 #define PERM_USED		0x020	// Accessed
@@ -67,6 +69,9 @@
 #define PTE_PS		0x080	// Page Size
 #define PTE_MBZ		0x180	// Bits must be zero
 #define PERM_BUFFERED 0x200 //Page it buffered
+
+#define IS_FIRST_PTR(PG_TABLE_ENT) (((PG_TABLE_ENT) & PTR_FIRST) == PTR_FIRST)
+#define IS_TAKEN(PG_TABLE_ENT) (((PG_TABLE_ENT) & PTR_TAKEN) == PTR_TAKEN)
 
 // The PERM_AVAILABLE bits aren't used by the kernel or interpreted by the
 // hardware, so user processes are allowed to set them arbitrarily.
