@@ -100,10 +100,10 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable)
 	//DON'T CHANGE THIS CODE========================================
 	if (size == 0) return NULL ;
 	//==============================================================
-	//TODO: [PROJECT'24.MS2 - #18] [4] SHARED MEMORY [USER SIDE] - smalloc()
-	// Write your code here, remove the panic and write your code
-	panic("smalloc() is not implemented yet...!!");
-	return NULL;
+	size = ROUNDUP(size,PAGE_SIZE);
+	void *va = malloc(size);
+	int sharedId = sys_createSharedObject(sharedVarName, size, isWritable,va);
+	return va;
 }
 
 //========================================
