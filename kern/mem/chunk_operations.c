@@ -156,27 +156,21 @@ void* sys_sbrk(int numOfPages)
 //=====================================
 void allocate_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 {
-	cprintf("inside the allocate sys call\n\n");
 	uint32 * ptr_page_table;
 	//check if there isn't a page table ready , create a new one
 	get_page_table(e->env_page_directory,virtual_address,&ptr_page_table);
-	cprintf("1\n\n");
 	if(!ptr_page_table) 
 		ptr_page_table=(uint32 *) create_page_table(e->env_page_directory,virtual_address);
 	//set the first entry's permission
 	ptr_page_table[PTX(virtual_address)]=ptr_page_table[PTX(virtual_address)] | PTR_FIRST | PTR_TAKEN | PERM_WRITEABLE | PERM_USER;
-	cprintf("2\n\n");
-	uint32 i=0;
 	uint32 noOfPages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
-	for (uint32 va = (uint32)virtual_address+PAGE_SIZE; va <= (uint32)virtual_address+PAGE_SIZE + (noOfPages - 1) * PAGE_SIZE; va += PAGE_SIZE)
+	for (uint32 va = (uint32)virtual_address+PAGE_SIZE; va <= (uint32)virtual_address+PAGE_SIZE + (noOfPages - 2) * PAGE_SIZE; va += PAGE_SIZE)
 	{
 		get_page_table(e->env_page_directory,va,&ptr_page_table);
 		if(!ptr_page_table) 
 			ptr_page_table=(uint32 *) create_page_table(e->env_page_directory,va);
-		cprintf("%u\n\n",i++);
 		ptr_page_table[PTX(va)]=ptr_page_table[PTX(va)] | PTR_TAKEN | PERM_WRITEABLE | PERM_USER;
 	}
-	cprintf("3\n\n");
 
 }
 
