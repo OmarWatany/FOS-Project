@@ -148,6 +148,7 @@ void* sys_sbrk(int numOfPages)
 		return (void *)-1;
 	uint32 *oldBrk = env->brk;
 	env->brk += numOfPages * PAGE_SIZE / 4;
+	allocate_user_mem(env,(uint32)oldBrk,PAGE_SIZE*numOfPages);
 	return oldBrk;
 }
 
