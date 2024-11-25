@@ -102,7 +102,13 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable)
 	//==============================================================
 	size = ROUNDUP(size,PAGE_SIZE);
 	void *va = malloc(size);
+	if(!va) return NULL;
 	int sharedId = sys_createSharedObject(sharedVarName, size, isWritable,va);
+	if(sharedId == E_SHARED_MEM_EXISTS || sharedId == E_NO_SHARE)
+	{
+		/* free(va); */
+		return NULL;
+	}
 	return va;
 }
 
