@@ -32,7 +32,7 @@ void* malloc(uint32 size)
 
 	uint32 firstPointer;
 	uint32 noOfPages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
-	// check of heap placment strategy done inside this syscall
+	// check of heap placement strategy done inside this syscall
 	firstPointer = sys_user_get_free_pages((myEnv->env_page_directory), noOfPages);
 
 	if (firstPointer) // if we found the number of pages needed , call the system call
@@ -50,7 +50,8 @@ void* malloc(uint32 size)
 void free(void* virtual_address)
 {
 	void *va = virtual_address;
-	if (va < sbrk(0) && (uint32 *)va > myEnv->da_Start)
+	if((uint32)va < USER_HEAP_START || (uint32)va > USER_HEAP_MAX || va==sbrk(0)) return;
+	if (va < sbrk(0) && (uint32 *)va >= myEnv->da_Start)
 	{
 		free_block(va);
 		return;
