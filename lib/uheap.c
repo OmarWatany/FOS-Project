@@ -117,12 +117,16 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable)
 //========================================
 void* sget(int32 ownerEnvID, char *sharedVarName)
 {
-	//TODO: [PROJECT'24.MS2 - #20] [4] SHARED MEMORY [USER SIDE] - sget()
-	// Write your code here, remove the panic and write your code
-	panic("sget() is not implemented yet...!!");
+	int size = sys_getSizeOfSharedObject(ownerEnvID, sharedVarName);
+	if(size == 0) return NULL;
+
+	void* ptr = malloc(size);
+	if (ptr == NULL) return NULL;
+
+	int ret = sys_getSharedObject(ownerEnvID, sharedVarName, ptr);
+	if (ret == 0) return ptr;
 	return NULL;
 }
-
 
 //==================================================================================//
 //============================== BONUS FUNCTIONS ===================================//
