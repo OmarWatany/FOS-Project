@@ -141,9 +141,7 @@ int createSharedObject(int32 ownerID, char* shareName, uint32 size, uint8 isWrit
 	uint32 *ptr_page_table = NULL;
 	struct FrameInfo *ptr_frame_info = NULL;
 
-	uint32 perms = PERM_USER| PTR_TAKEN | PERM_PRESENT;
-	perms |= isWritable ? PERM_WRITEABLE : 0;
-
+	uint32 perms = PERM_USER | PTR_TAKEN | PERM_PRESENT | PERM_WRITEABLE;
 	for (uint32 iter = (uint32)sha,i = 0; iter <= (uint32)sha + (noOfPages - 1)*PAGE_SIZE; iter += PAGE_SIZE,i++)
 	{
 		ptr_frame_info = get_frame_info(ptr_page_directory, iter, &ptr_page_table);
