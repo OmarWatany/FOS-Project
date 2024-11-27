@@ -105,7 +105,7 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable)
 	int sharedId = sys_createSharedObject(sharedVarName, size, isWritable,va);
 	if(sharedId == E_SHARED_MEM_EXISTS || sharedId == E_NO_SHARE)
 	{
-		/* free(va); */
+		free(va);
 		return NULL;
 	}
 	return va;
