@@ -319,3 +319,8 @@ bool sys_is_user_page_first(volatile uint32 * env_page_directory, uint32 va)
 {
 	return syscall(SYS_is_user_page_first, (uint32)env_page_directory, (uint32)va,0, 0, 0);
 }
+
+uint32 sys_user_get_free_pages(volatile uint32 * env_page_directory,uint32 noOfPages)
+{
+	return syscall(SYS_user_get_free_pages, (uint32)env_page_directory, noOfPages,0, 0, 0);
+}

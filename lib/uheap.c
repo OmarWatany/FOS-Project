@@ -29,36 +29,19 @@ void* malloc(uint32 size)
 	// if its less or equal to 2KB , then refer it to the block allocator
 	if (size+8 <= DYN_ALLOC_MAX_BLOCK_SIZE)
 		return alloc_block_FF(size);
-	uint32 * ptr_page_table;
-	uint32 firstPointer;
-	if (sys_isUHeapPlacementStrategyFIRSTFIT())
-	{
-		
-		uint32 noOfPages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
-		uint32 c = 0;
-		for (uint32 va = (uint32)(myEnv->rlimit) + PAGE_SIZE; va < USER_HEAP_MAX; va += PAGE_SIZE) //searching for enough space with FF
-		{
-			if (sys_is_user_page_taken((myEnv->env_page_directory),va)) // if its taken or not
-			{
-				c = 0;	  // reset the counter
-				continue; // if its taken , continue
-			}
-			c++; // to count the number of back-to-back free pages found
-			if (c == 1)
-				firstPointer = va; // save the address of the first page
 
-			if (c == noOfPages)
-				break; // if we got the number we need , no need for more search
-		}
-		if (c == noOfPages) // if we found the number of pages needed , call the system call
-		{
-			sys_allocate_user_mem(firstPointer,size);
-			return (void* )firstPointer;
-		}
+	uint32 firstPointer;
+	uint32 noOfPages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
+	// check of heap placment strategy done inside this syscall
+	firstPointer = sys_user_get_free_pages((myEnv->env_page_directory), noOfPages);
+
+	if (firstPointer) // if we found the number of pages needed , call the system call
+	{
+		sys_allocate_user_mem(firstPointer,size);
+		return (void* )firstPointer;
 	}
 
 	return NULL;
-
 }
 
 //=================================

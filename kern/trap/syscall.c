@@ -363,6 +363,31 @@ bool sys_is_user_page_first(volatile uint32 * env_page_directory, uint32 va)
 	return 0;
 }
 
+uint32 sys_user_get_free_pages(volatile uint32 * env_page_directory,uint32 noOfPages)
+{
+	uint32 firstPointer;
+	if (_UHeapPlacementStrategy == UHP_PLACE_FIRSTFIT)
+	{
+		uint32 c = 0;
+		for (uint32 va = (uint32)cur_env->rlimit + PAGE_SIZE; va < USER_HEAP_MAX; va += PAGE_SIZE) //searching for enough space with FF
+		{
+			if (sys_is_user_page_taken(env_page_directory,va)) // if its taken or not
+			{
+				c = 0;	  // reset the counter
+				continue; // if its taken , continue
+			}
+			c++; // to count the number of back-to-back free pages found
+			if (c == 1)
+				firstPointer = va; // save the address of the first page
+
+			if (c == noOfPages)
+				return firstPointer; // if we got the number we need , no need for more search
+		}
+	}
+	return 0;
+}
+
+
 //2014
 void sys_move_user_mem(uint32 src_virtual_address, uint32 dst_virtual_address, uint32 size)
 {
@@ -723,6 +748,8 @@ uint32 syscall(uint32 syscallno, uint32 a1, uint32 a2, uint32 a3, uint32 a4, uin
 
 	case SYS_is_user_page_first:
 		return  (uint32)sys_is_user_page_first((volatile uint32 *)a1, (uint32)a2);
+	case SYS_user_get_free_pages:
+		return sys_user_get_free_pages((volatile uint32 *)a1,a2);;
 
 	case NSYSCALLS:
 		return 	-E_INVAL;

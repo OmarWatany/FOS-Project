@@ -53,6 +53,7 @@ enum
 	SYS_free_user_mem,
 	SYS_is_user_page_taken,
 	SYS_is_user_page_first,
+	SYS_user_get_free_pages,
 
 	//=====================================================================
 	NSYSCALLS
