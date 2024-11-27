@@ -181,18 +181,14 @@ void allocate_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 void free_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 {
 	uint32 * ptr_page_table;
-	get_page_table(e->env_page_directory,virtual_address,&ptr_page_table);
-
 	uint32 noOfPages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
-	struct Env* env = get_cpu_proc();
-	for (uint32 va = (uint32)virtual_address; va <= (uint32)virtual_address+PAGE_SIZE + (noOfPages - 1) * PAGE_SIZE; va += PAGE_SIZE)
+	for (uint32 va = (uint32)virtual_address; va < (uint32)virtual_address+PAGE_SIZE + (noOfPages - 1) * PAGE_SIZE; va += PAGE_SIZE)
 	{
-		ptr_page_table[PTX(va)]=ptr_page_table[PTX(va)] & ~PTR_TAKEN & ~PERM_WRITEABLE & ~PTR_FIRST & ~PERM_USER;
-		unmap_frame(env->env_page_directory,va);
-		pf_remove_env_page(env,va);
-		env_page_ws_invalidate(env,va); // this lines assumes that all of them are in the working set , which is most probably not true 
+		pt_set_page_permissions(e->env_page_directory,va,0,PTR_TAKEN |  PTR_FIRST );
+		unmap_frame(e->env_page_directory,va);
+		pf_remove_env_page(e,va);
+		env_page_ws_invalidate(e,va); // this lines assumes that all of them are in the working set , which is most probably not true 
 	}
-
 	//TODO: [PROJECT'24.MS2 - BONUS#3] [3] USER HEAP [KERNEL SIDE] - O(1) free_user_mem
 }
 
