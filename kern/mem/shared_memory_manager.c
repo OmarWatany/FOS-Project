@@ -141,7 +141,7 @@ int createSharedObject(int32 ownerID, char* shareName, uint32 size, uint8 isWrit
 	uint32 *ptr_page_table = NULL;
 	struct FrameInfo *ptr_frame_info = NULL;
 
-	uint32 perms = PERM_USER| PTR_TAKEN;
+	uint32 perms = PERM_USER| PTR_TAKEN | PERM_PRESENT;
 	perms |= isWritable ? PERM_WRITEABLE : 0;
 
 	for (uint32 iter = (uint32)sha,i = 0; iter <= (uint32)sha + (noOfPages - 1)*PAGE_SIZE; iter += PAGE_SIZE,i++)
@@ -172,12 +172,28 @@ int createSharedObject(int32 ownerID, char* shareName, uint32 size, uint8 isWrit
 //======================
 int getSharedObject(int32 ownerID, char* shareName, void* virtual_address)
 {
-	//TODO: [PROJECT'24.MS2 - #21] [4] SHARED MEMORY [KERNEL SIDE] - getSharedObject()
-	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	panic("getSharedObject is not implemented yet");
-	//Your Code is Here...
-
 	struct Env* myenv = get_cpu_proc(); //The calling environment
+
+	struct Share* sharedObject = get_share(ownerID,shareName);
+	if (sharedObject == NULL) return E_SHARED_MEM_NOT_EXISTS;
+	struct FrameInfo** frames = sharedObject->framesStorage;
+	int size = sharedObject->size;
+	for (int i = 0; i < size / PAGE_SIZE; i++) {
+		void* addr = (void*)((uint32)virtual_address + i * PAGE_SIZE);
+		int perms = PERM_USER | PERM_PRESENT | PTR_TAKEN;
+		perms |= sharedObject->isWritable ? PERM_WRITEABLE : 0;
+		if (i == 0)
+		{
+			if (map_frame(myenv->env_page_directory, frames[i],(uint32) addr , perms | PTR_FIRST))
+				return E_SHARED_MEM_NOT_EXISTS;
+		}
+		if (map_frame(myenv->env_page_directory, frames[i],(uint32) addr, perms)) {
+			return E_SHARED_MEM_NOT_EXISTS;
+		}
+	}
+
+	sharedObject->references++;
+	return sharedObject->ID;
 }
 
 //==================================================================================//
