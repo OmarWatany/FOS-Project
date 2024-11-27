@@ -1,6 +1,6 @@
 #include <inc/lib.h>
 #define PTR_FIRST 0x200 // if set then it's the first pointer
-#define PTR_TAKEN 0x400 // if set then it's the first pointer
+#define PTR_TAKEN 0x400 // if set then it's taken
 #define IS_FIRST_PTR(PG_TABLE_ENT) (((PG_TABLE_ENT) & PTR_FIRST) == PTR_FIRST)
 #define IS_TAKEN(PG_TABLE_ENT) (((PG_TABLE_ENT) & PTR_TAKEN) == PTR_TAKEN)
 
@@ -36,10 +36,9 @@ void* malloc(uint32 size)
 		
 		uint32 noOfPages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
 		uint32 c = 0;
-		bool *f=NULL;
 		for (uint32 va = (uint32)(myEnv->rlimit) + PAGE_SIZE; va < USER_HEAP_MAX; va += PAGE_SIZE) //searching for enough space with FF
 		{
-			if (sys_is_user_page_taken((myEnv->env_page_directory),va,f)) // if its taken or not
+			if (sys_is_user_page_taken((myEnv->env_page_directory),va)) // if its taken or not
 			{
 				c = 0;	  // reset the counter
 				continue; // if its taken , continue
@@ -81,7 +80,7 @@ void free(void* virtual_address)
 	uint32 noOfPages=1;
 	for(uint32 iter=(uint32)va+ PAGE_SIZE;iter<USER_HEAP_MAX;iter+=PAGE_SIZE)
 	{
-		if (IS_FIRST_PTR(myEnv->env_page_directory[PDX(va)]) | !IS_TAKEN(myEnv->env_page_directory[PDX(va)])) // if its taken or not
+		if (sys_is_user_page_first((myEnv->env_page_directory),iter) | !sys_is_user_page_taken((myEnv->env_page_directory),iter)) // if its taken or first
 		{
 			break;
 		}
