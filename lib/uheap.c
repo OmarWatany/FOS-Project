@@ -127,9 +127,7 @@ void* sget(int32 ownerEnvID, char *sharedVarName)
 
 void sfree(void* virtual_address)
 {
-	//TODO: [PROJECT'24.MS2 - BONUS#4] [4] SHARED MEMORY [USER SIDE] - sfree()
-	// Write your code here, remove the panic and write your code
-	panic("sfree() is not implemented yet...!!");
+	sys_freeSharedObject(0,virtual_address);
 }
 
 

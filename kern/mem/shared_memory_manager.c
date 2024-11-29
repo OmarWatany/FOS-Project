@@ -126,6 +126,7 @@ int createSharedObject(int32 ownerID, char* shareName, uint32 size, uint8 isWrit
 	
 	if(get_share(ownerID,shareName)) return E_SHARED_MEM_EXISTS;
 
+	cprintf("create size %u\n",size);
 	struct Share * shared = create_share(ownerID, shareName, size, isWritable);
 	if(!shared) return E_NO_SHARE;
 
@@ -136,7 +137,7 @@ int createSharedObject(int32 ownerID, char* shareName, uint32 size, uint8 isWrit
 	// allocate space on kernel heap
 	void * sha = kmalloc(size);
 	if(!sha) return E_NO_SHARE;
-
+	shared->phva = sha;
 	// map it to virtual_address
 	uint32 *ptr_page_table = NULL;
 	struct FrameInfo *ptr_frame_info = NULL;
@@ -205,20 +206,52 @@ int getSharedObject(int32 ownerID, char* shareName, void* virtual_address)
 //it should free its framesStorage and the share object itself
 void free_share(struct Share* ptrShare)
 {
-	//TODO: [PROJECT'24.MS2 - BONUS#4] [4] SHARED MEMORY [KERNEL SIDE] - free_share()
-	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	panic("free_share is not implemented yet");
-	//Your Code is Here...
-
+	LIST_REMOVE(&AllShares.shares_list,ptrShare);
+	kfree(ptrShare->phva);
+	kfree(ptrShare->framesStorage);
+	kfree(ptrShare);
 }
 //========================
 // [B2] Free Share Object:
 //========================
 int freeSharedObject(int32 sharedObjectID, void *startVA)
 {
-	//TODO: [PROJECT'24.MS2 - BONUS#4] [4] SHARED MEMORY [KERNEL SIDE] - freeSharedObject()
-	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	panic("freeSharedObject is not implemented yet");
-	//Your Code is Here...
+	struct Env* myenv = get_cpu_proc(); //The calling environment
+	acquire_spinlock(&AllShares.shareslock);
 
+	uint32 *ptr_page_table = NULL;
+	struct FrameInfo *ptr_frame_info = get_frame_info(myenv->env_page_directory, (uint32)startVA, &ptr_page_table);
+	if (!ptr_frame_info) return 0;
+
+	struct Share *iter;
+	LIST_FOREACH(iter,&AllShares.shares_list)
+	{
+		if(iter->framesStorage[0] == ptr_frame_info)
+		{
+			release_spinlock(&AllShares.shareslock);
+			goto FOUND_SHARED;
+		}
+	}
+	release_spinlock(&AllShares.shareslock);
+	return 0;
+
+FOUND_SHARED:
+
+	cprintf("found shared ownerID : %u\n",iter->ownerID);
+	cprintf("size %u\n",iter->size);
+	cprintf("name %s\n",iter->name);
+
+	free_user_mem(myenv, (uint32)startVA, iter->size);
+
+	/* ptr_page_table = NULL; */
+	/* ptr_frame_info = get_frame_info(myenv->env_page_directory, (uint32)startVA, &ptr_page_table); */
+	/* if (!ptr_frame_info) return 0; */
+
+	// if page table empty free it;
+
+	iter->references--;
+	if(!iter->references) free_share(iter);
+	else cprintf("shared ref : %u\n",iter->references);
+
+	return 0;
 }

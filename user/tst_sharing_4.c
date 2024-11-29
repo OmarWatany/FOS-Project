@@ -42,17 +42,17 @@ _main(void)
 		freeFrames = sys_calculate_free_frames() ;
 		x = smalloc("x", PAGE_SIZE, 1);
 		if (x != (uint32*)pagealloc_start)
-		{is_correct = 0; cprintf("Returned address is not correct. check the setting of it and/or the updating of the shared_mem_free_address");}
+		{is_correct = 0; cprintf("Returned address is not correct. check the setting of it and/or the updating of the shared_mem_free_address\n");}
 		expected = 1+1 ; /*1page +1table*/
 		diff = (freeFrames - sys_calculate_free_frames());
 		if (diff < expected || diff > expected +1+1 /*extra 1 page & 1 table for sbrk (at max)*/)
-			{is_correct = 0; cprintf("Wrong allocation (current=%d, expected=%d): make sure that you allocate the required space in the user environment and add its frames to frames_storage", freeFrames - sys_calculate_free_frames(), expected);}
+			{is_correct = 0; cprintf("Wrong allocation (current=%d, expected=%d): make sure that you allocate the required space in the user environment and add its frames to frames_storage\n", freeFrames - sys_calculate_free_frames(), expected);}
 
 		sfree(x);
 		expected = 0 ;
 		int diff = (freeFrames - sys_calculate_free_frames());
 		if (diff !=  expected)
-		{is_correct = 0; cprintf("Wrong free: revise your freeSharedObject logic. Expected = %d, Actual = %d", expected, (freeFrames - sys_calculate_free_frames()));}
+		{is_correct = 0; cprintf("Wrong free: revise your freeSharedObject logic. Expected = %d, Actual = %d\n", expected, (freeFrames - sys_calculate_free_frames()));}
 	}
 	cprintf("Step A completed!!\n\n\n");
 
@@ -67,26 +67,26 @@ _main(void)
 		x = smalloc("x", PAGE_SIZE, 1);
 
 		if(x == NULL)
-		{is_correct = 0; cprintf("Wrong free: make sure that you free the shared object by calling free_share_object()");}
+		{is_correct = 0; cprintf("Wrong free: make sure that you free the shared object by calling free_share_object()\n");}
 
 		expected = 2+1 ; /*2pages +1table*/
 		diff = (freeFrames - sys_calculate_free_frames());
 		if (diff < expected || diff > expected +1+1 /*extra 1 page & 1 table for sbrk (at max)*/)
-			{is_correct = 0; cprintf("Wrong previous free: make sure that you correctly free shared object before (Step A)");}
+			{is_correct = 0; cprintf("Wrong previous free: make sure that you correctly free shared object before (Step A)\n");}
 
 		sfree(z);
 
 		expected = 1+1 ; /*1page +1table*/
 		diff = (freeFrames - sys_calculate_free_frames());
 		if (diff !=  expected)
-		{is_correct = 0; cprintf("Wrong free: revise your freeSharedObject logic. Expected = %d, Actual = %d", expected, (freeFrames - sys_calculate_free_frames()));}
+		{is_correct = 0; cprintf("Wrong free: revise your freeSharedObject logic. Expected = %d, Actual = %d\n", expected, (freeFrames - sys_calculate_free_frames()));}
 
 		sfree(x);
 
 		expected = 0;
 		diff = (freeFrames - sys_calculate_free_frames());
 		if (diff !=  expected)
-		{is_correct = 0; cprintf("Wrong free: revise your freeSharedObject logic. Expected = %d, Actual = %d", expected, (freeFrames - sys_calculate_free_frames()));}
+		{is_correct = 0; cprintf("Wrong free: revise your freeSharedObject logic. Expected = %d, Actual = %d\n", expected, (freeFrames - sys_calculate_free_frames()));}
 
 	}
 	cprintf("Step B completed!!\n\n\n");
@@ -103,13 +103,13 @@ _main(void)
 		expected = 5+1 ; /*5pages +1table*/
 		diff = (freeFrames - sys_calculate_free_frames());
 		if (diff < expected || diff > expected +1+1 /*extra 1 page & 1 table for sbrk (at max)*/)
-			{is_correct = 0; cprintf("Wrong allocation (current=%d, expected=%d): make sure that you allocate the required space in the user environment and add its frames to frames_storage", freeFrames - sys_calculate_free_frames(), expected);}
+			{is_correct = 0; cprintf("Wrong allocation (current=%d, expected=%d): make sure that you allocate the required space in the user environment and add its frames to frames_storage\n", freeFrames - sys_calculate_free_frames(), expected);}
 
 		sfree(w);
 
 		expected = 1+1 ; /*1page +1table*/
 		diff = (freeFrames - sys_calculate_free_frames());
-		if (diff != expected) {is_correct = 0; cprintf("Wrong free: revise your freeSharedObject logic. Expected = %d, Actual = %d", expected, (freeFrames - sys_calculate_free_frames()));}
+		if (diff != expected) {is_correct = 0; cprintf("Wrong free: revise your freeSharedObject logic. Expected = %d, Actual = %d\n", expected, (freeFrames - sys_calculate_free_frames()));}
 
 		uint32 *o;
 
@@ -118,19 +118,19 @@ _main(void)
 		expected = 3+1 ; /*3pages +1table*/
 		diff = (freeFrames - sys_calculate_free_frames());
 		if (diff != expected /*Exact! since it's not expected that to invloke sbrk due to the prev. sfree*/)
-			{is_correct = 0; cprintf("Wrong allocation (current=%d, expected=%d): make sure that you allocate the required space in the user environment and add its frames to frames_storage", freeFrames - sys_calculate_free_frames(), expected);}
+			{is_correct = 0; cprintf("Wrong allocation (current=%d, expected=%d): make sure that you allocate the required space in the user environment and add its frames to frames_storage\n", freeFrames - sys_calculate_free_frames(), expected);}
 
 		sfree(o);
 
 		expected = 1+1 ; /*1page +1table*/
 		diff = (freeFrames - sys_calculate_free_frames());
-		if (diff != expected) {is_correct = 0; cprintf("Wrong free: revise your freeSharedObject logic. Expected = %d, Actual = %d", expected, (freeFrames - sys_calculate_free_frames()));}
+		if (diff != expected) {is_correct = 0; cprintf("Wrong free: revise your freeSharedObject logic. Expected = %d, Actual = %d\n", expected, (freeFrames - sys_calculate_free_frames()));}
 
 		sfree(u);
 
 		expected = 0;
 		diff = (freeFrames - sys_calculate_free_frames());
-		if (diff != expected) {is_correct = 0; cprintf("Wrong free: revise your freeSharedObject logic. Expected = %d, Actual = %d", expected, (freeFrames - sys_calculate_free_frames()));}
+		if (diff != expected) {is_correct = 0; cprintf("Wrong free: revise your freeSharedObject logic. Expected = %d, Actual = %d\n", expected, (freeFrames - sys_calculate_free_frames()));}
 
 
 		//Checking boundaries of page tables
@@ -142,7 +142,7 @@ _main(void)
 		expected = 3073+4+4 ; /*3073pages +4tables +4pages for framesStorage by Kernel Page Allocator since it exceed 2KB size*/
 		diff = (freeFrames - sys_calculate_free_frames());
 		if (diff < expected || diff > expected +1+1 /*extra 1 page & 1 table for sbrk (at max)*/)
-			{is_correct = 0; cprintf("Wrong allocation (current=%d, expected=%d): make sure that you allocate the required space in the user environment and add its frames to frames_storage", freeFrames - sys_calculate_free_frames(), expected);}
+			{is_correct = 0; cprintf("Wrong allocation (current=%d, expected=%d): make sure that you allocate the required space in the user environment and add its frames to frames_storage\n", freeFrames - sys_calculate_free_frames(), expected);}
 
 		freeFrames = sys_calculate_free_frames() ;
 
@@ -156,7 +156,7 @@ _main(void)
 
 		expected = 3073+4+4;
 		diff = (sys_calculate_free_frames() - freeFrames);
-		if (diff != expected) {is_correct = 0; cprintf("Wrong free: revise your freeSharedObject logic. Expected = %d, Actual = %d", expected, (freeFrames - sys_calculate_free_frames()));}
+		if (diff != expected) {is_correct = 0; cprintf("Wrong free: revise your freeSharedObject logic. Expected = %d, Actual = %d\n", expected, (freeFrames - sys_calculate_free_frames()));}
 	}
 	cprintf("Step C completed!!\n\n\n");
 	if (is_correct)	eval+=50;
