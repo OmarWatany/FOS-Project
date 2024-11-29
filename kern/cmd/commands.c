@@ -53,6 +53,7 @@ struct Command commands[] =
 		{"nomodbuff", "disable modified buffer", command_disable_modified_buffer, 0},
 		{"modbuff", "enable modified buffer", command_enable_modified_buffer, 0},
 		{"modbufflength?", "get modified buffer length", command_get_modified_buffer_length, 0},
+		{"tkrealloc", "test krealloc function",command_tst_krealloc,0},
 
 		//*****************************//
 		/* COMMANDS WITH ONE ARGUMENT */
@@ -480,6 +481,110 @@ int command_kill_program(int number_of_arguments, char **arguments)
 	int32 envId = strtol(arguments[1],NULL, 10);
 
 	sched_kill_env(envId);
+
+	return 0;
+}
+
+int command_tst_krealloc(int number_of_arguments, char **arguments)
+{
+#define killo 1024
+	uint32 eval = 0, correct = 1;
+	uint32 firstexva = (uint32)rlimit + PAGE_SIZE;
+	uint32 allocSizes[]  = {7*killo,3*killo,4*killo,1*killo,2*killo,1*killo};
+#define arrSize sizeof(allocSizes) /sizeof(int) 
+	uint32 expectedVA[arrSize]  = {
+		firstexva ,
+		firstexva + 2*PAGE_SIZE ,
+		firstexva + 3*PAGE_SIZE,
+		0xf6000030,
+		0xf6000030+allocSizes[3]+2*sizeof(int),
+		0xf6000030+allocSizes[3]+allocSizes[4]+4*sizeof(int),
+	};
+	void * vas[arrSize] = {0};
+
+	uint32 content[10] = {0,1,2,3,4,5,6,7,8,9};
+
+	cprintf("1. allocate space using realloc[10%]\n");
+	cprintf("========================================\n") ;
+
+	for(int i = 0 ; i < arrSize ; i++)
+	{
+		vas[i] = krealloc(NULL,allocSizes[i]);
+		if((void*)expectedVA[i] != vas[i])
+		{
+			correct = 0;
+			panic("[Wrong address] va %u exva : %p , actual : %p",i,(void*)expectedVA[i],vas[i]);
+		}
+		memcpy(vas[i],content,sizeof(content));
+	}
+	if(correct) eval += 10;
+
+	cprintf("2. free space using realloc to create a hole[20%]\n");
+	cprintf("========================================\n") ;
+
+	expectedVA[1]  = 0;
+	vas[1] = krealloc(vas[1],0);
+	for(int i = 0 ; i < arrSize ; i++)
+	{
+		if((void*)expectedVA[i] != vas[i])
+		{
+			correct = 0;
+			panic("[Wrong address] va %u exva : %p , actual : %p",i,(void*)expectedVA[i],vas[i]);
+		}
+	}
+
+	if(correct) eval += 10;
+
+	cprintf("3. realloc space [in place] [70%]\n");
+	cprintf("========================================\n") ;
+
+	vas[0] = krealloc(vas[0],allocSizes[0]+ allocSizes[1]);
+	vas[4] = krealloc(vas[4],1*killo);
+	for(int i = 0 ; i < arrSize ; i++)
+	{
+		if((void*)expectedVA[i] != vas[i])
+		{
+			correct = 0;
+			panic("[Wrong address] va %u exva : %p , actual : %p",i,(void*)expectedVA[i],vas[i]);
+		}
+	}
+
+	if(correct) eval = 70;
+	cprintf("4. realloc space [90%]\n");
+	cprintf("========================================\n") ;
+
+	expectedVA[0] = firstexva + 4*PAGE_SIZE;
+	vas[0] = krealloc(vas[0],4*PAGE_SIZE);
+
+	expectedVA[3] = expectedVA[5]+allocSizes[5]+2*sizeof(int);
+	vas[3] = krealloc(vas[3],2*killo);
+
+	expectedVA[5] = firstexva + 8*PAGE_SIZE;
+	vas[5] = krealloc(vas[5],4*PAGE_SIZE);
+
+	for(int i = 0 ; i < arrSize; i++)
+	{
+		if((void*)expectedVA[i] != vas[i])
+		{
+			correct = 0;
+			panic("[Wrong address] va %u exva : %p , actual : %p",i,(void*)expectedVA[i],vas[i]);
+		}
+	}
+
+	if(correct) eval = 90;
+
+	cprintf("5. allocate freed space [100%]\n");
+	cprintf("========================================\n") ;
+
+	void *va = krealloc(NULL,3*PAGE_SIZE);
+	if((void*)firstexva  != va)
+	{
+		correct = 0;
+		panic("[Wrong address] new va exva : %p , actual : %p",(void*)firstexva,va);
+	}
+
+	if(correct) eval = 100;
+	cprintf("Eval : [%d]\n",eval);
 
 	return 0;
 }
