@@ -224,11 +224,29 @@ void *krealloc(void *virtual_address, uint32 new_size)
 		return NULL;
 	}
 
+	void *va = virtual_address;
+	if (va < sbrk(0) && (uint32 *)va > da_Start)
+	{
+		if(new_size > 2*1024)
+		{
+			kfree(va);
+			return kmalloc(new_size);
+		}
+		return realloc_block_FF(va,new_size);
+	}
+
+	if ((uint32)va > KERNEL_HEAP_MAX || va < (void *)rlimit + PAGE_SIZE)
+	{
+		panic("Wrong address\n");
+		return NULL;
+	}
+
 	uint32 nof_pages = ROUNDUP(new_size,PAGE_SIZE) / PAGE_SIZE;
 	uint32 old_nof_pages  = kget_no_of_pages_allocated((uint32)virtual_address);
+	uint32 diff_no_pages =  nof_pages - old_nof_pages;
 
-	if(old_nof_pages == nof_pages) return virtual_address;
-	if(old_nof_pages > nof_pages)
+	if(diff_no_pages == 0) return virtual_address;
+	if(diff_no_pages < 0)
 	{
 		kfree(virtual_address);
 		return NULL;
@@ -236,7 +254,6 @@ void *krealloc(void *virtual_address, uint32 new_size)
 
 	if (isKHeapPlacementStrategyFIRSTFIT())
 	{
-		uint32 diff_no_pages =  nof_pages - old_nof_pages;
 		struct FrameInfo *firstPointer;
 		struct FrameInfo *ptr_frame_info;
 		uint32 *ptr_page_table;
