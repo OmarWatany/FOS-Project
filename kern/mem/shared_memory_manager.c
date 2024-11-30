@@ -241,7 +241,17 @@ FOUND_SHARED:
 	cprintf("size %u\n",iter->size);
 	cprintf("name %s\n",iter->name);
 
+	ptr_page_table = NULL;
+	ptr_frame_info = get_frame_info(myenv->env_page_directory, (uint32)startVA, &ptr_page_table);
+	if (!ptr_frame_info){
+		cprintf("ptr_frame not found \n");
+		return 0;
+	}
+
+	uint32 *ptr_page_table2 = NULL;
+	struct FrameInfo *table_FrameInfo = get_frame_info(myenv->env_page_directory, (uint32)ptr_page_table, &ptr_page_table2);
 	free_user_mem(myenv, (uint32)startVA, iter->size);
+	kfree(ptr_page_table);
 
 	/* ptr_page_table = NULL; */
 	/* ptr_frame_info = get_frame_info(myenv->env_page_directory, (uint32)startVA, &ptr_page_table); */
