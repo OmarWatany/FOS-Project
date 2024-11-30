@@ -4,8 +4,6 @@
 #include <inc/dynamic_allocator.h>
 #include "memory_manager.h"
 
-#define PTR_FIRST 0x200 // if set then it's the first pointer
-#define IS_FIRST_PTR(PG_TABLE_ENT) (((PG_TABLE_ENT) & PTR_FIRST) == PTR_FIRST)
 
 // Initialize the dynamic allocator of kernel heap with the given start address, size & limit
 // All pages in the given range should be allocated
@@ -147,13 +145,31 @@ void kfree(void *virtual_address)
 		uint32 page_table_entry = ptr_page_table[PTX(iter)]; // get the page entry itself so I can check the permission bits
 
 		if (iter == (uint32)va)
+		{
+			ptr_page_table[PTX(iter)] &= (~PTR_FIRST); // el tel3ab feh lazem teraga3o makano lama t5alas
 			goto HERE; // so I dont check if its the first
+		}
 		if (!ptr_frame_info || IS_FIRST_PTR(page_table_entry))
 			return;
 	HERE:
-		ptr_page_table[PTX(iter)] = ptr_page_table[PTX(iter)] & (~PTR_FIRST); // el tel3ab feh lazem teraga3o makano lama t5alas
 		unmap_frame(ptr_page_directory, iter);								   // does all the needed checks
 	}
+}
+
+unsigned int kget_no_of_pages_allocated(unsigned int virtual_address)
+{
+	struct FrameInfo *ptr_frame_info = NULL;
+	uint32 *ptr_page_table = NULL;
+	uint32 noOfPages = 0;
+	for (uint32 iter = (uint32)virtual_address; iter < KERNEL_HEAP_MAX; iter += PAGE_SIZE)
+	{
+		ptr_frame_info = get_frame_info(ptr_page_directory, iter, &ptr_page_table);
+		uint32 page_table_entry = ptr_page_table[PTX(iter)]; // get the page entry itself so I can check the permission bits
+
+		if (!ptr_frame_info || (IS_FIRST_PTR(page_table_entry) && iter != (uint32)virtual_address)) break;
+		noOfPages++;
+	}
+	return noOfPages; 
 }
 
 unsigned int kheap_physical_address(unsigned int virtual_address)
@@ -201,8 +217,83 @@ unsigned int kheap_virtual_address(unsigned int physical_address)
 
 void *krealloc(void *virtual_address, uint32 new_size)
 {
-	// TODO: [PROJECT'24.MS2 - BONUS#1] [1] KERNEL HEAP - krealloc
-	//  Write your code here, remove the panic and write your code
+	if(!virtual_address) return kmalloc(new_size);
+	if(!new_size)
+	{
+		kfree(virtual_address);
+		return NULL;
+	}
+
+	void *va = virtual_address;
+	if (va < sbrk(0) && (uint32 *)va > da_Start)
+	{
+		if(new_size > 2*1024)
+		{
+			kfree(va);
+			return kmalloc(new_size);
+		}
+		return realloc_block_FF(va,new_size);
+	}
+
+	if ((uint32)va > KERNEL_HEAP_MAX || va < (void *)rlimit + PAGE_SIZE)
+	{
+		panic("Wrong address\n");
+		return NULL;
+	}
+
+	uint32 nof_pages = ROUNDUP(new_size,PAGE_SIZE) / PAGE_SIZE;
+	uint32 old_nof_pages  = kget_no_of_pages_allocated((uint32)virtual_address);
+	uint32 diff_no_pages =  nof_pages - old_nof_pages;
+
+	if(diff_no_pages == 0) return virtual_address;
+	if(diff_no_pages < 0)
+	{
+		kfree(virtual_address);
+		return NULL;
+	}
+
+	if (isKHeapPlacementStrategyFIRSTFIT())
+	{
+		struct FrameInfo *firstPointer;
+		struct FrameInfo *ptr_frame_info;
+		uint32 *ptr_page_table;
+		uint32 c = 0;
+		for (uint32 va = (uint32)virtual_address+old_nof_pages*PAGE_SIZE; va < (uint32)virtual_address+(nof_pages)*PAGE_SIZE; va += PAGE_SIZE)
+		{
+			if (get_frame_info(ptr_page_directory, va, &ptr_page_table)) // if its not 0 or NULL , so its allocated , then we should find somewhere else
+			{
+				c = 0;	  // reset the counter
+				continue; // if the current page exists , continue
+			}
+			c++; // to count the number of back-to-back free pages found
+			if (c == 1)
+				firstPointer = (struct FrameInfo *)va; // save the address of the first page
+			if (c == diff_no_pages)
+				break; // if we got the number we need , no need for more search
+		}
+
+		if (c == diff_no_pages) // if we found the number of pages needed , we should start allocating
+		{
+			// set the 9th bit to 1 if va is the first pointer
+			for (uint32 va = (uint32)firstPointer; va <= (uint32)firstPointer + (diff_no_pages - 1) * PAGE_SIZE; va += PAGE_SIZE)
+			{
+				if (allocate_frame(&ptr_frame_info) == E_NO_MEM ||
+						map_frame(ptr_page_directory, ptr_frame_info, va, PERM_WRITEABLE) == E_NO_MEM)
+				{
+					kfree(virtual_address);
+					return NULL;
+				}
+			}
+			return virtual_address;
+		}
+		else
+		{
+			void *nva = kmalloc(new_size);
+			if(!nva) return NULL;
+			memcpy(nva,virtual_address,old_nof_pages*PAGE_SIZE);
+			kfree(virtual_address);
+			return nva;
+		}
+	}
 	return NULL;
-	panic("krealloc() is not implemented yet...!!");
 }

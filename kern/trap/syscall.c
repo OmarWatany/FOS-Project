@@ -18,8 +18,10 @@
 #include <kern/mem/shared_memory_manager.h>
 #include <kern/tests/utilities.h>
 #include <kern/tests/test_working_set.h>
-#define PTR_TAKEN 0x400 // if set then it's the first pointer
+#define PTR_FIRST 0x200 // if set then it's the first pointer
+#define PTR_TAKEN 0x400 // if set then it's taken
 #define IS_TAKEN(PG_TABLE_ENT) (((PG_TABLE_ENT) & PTR_TAKEN) == PTR_TAKEN)
+#define IS_FIRST_PTR(PG_TABLE_ENT) (((PG_TABLE_ENT) & PTR_FIRST) == PTR_FIRST)
 
 extern uint8 bypassInstrLength ;
 struct Env* cur_env ;
@@ -335,7 +337,7 @@ void sys_allocate_chunk(uint32 virtual_address, uint32 size, uint32 perms)
 	return;
 }
 
-bool sys_is_user_page_taken(volatile uint32 * env_page_directory, uint32 va,bool *f)
+bool sys_is_user_page_taken(volatile uint32 * env_page_directory, uint32 va)
 {
 	uint32 * ptr_page_table;
 	get_page_table((uint32 *) env_page_directory,va,&ptr_page_table);
@@ -347,6 +349,45 @@ bool sys_is_user_page_taken(volatile uint32 * env_page_directory, uint32 va,bool
 		{return 0;}
 	return 0;
 }
+
+bool sys_is_user_page_first(volatile uint32 * env_page_directory, uint32 va)
+{
+	uint32 * ptr_page_table;
+	get_page_table((uint32 *) env_page_directory,va,&ptr_page_table);
+	if(!ptr_page_table)
+		{return 0;}
+	if(IS_FIRST_PTR(ptr_page_table[PTX(va)]))
+		{return 1;}
+	else 
+		{return 0;}
+	return 0;
+}
+
+uint32 sys_user_get_free_pages(volatile uint32 * env_page_directory,uint32 noOfPages)
+{
+	uint32 firstPointer;
+	if (_UHeapPlacementStrategy == UHP_PLACE_FIRSTFIT)
+	{
+		uint32 c = 0;
+		for (uint32 va = (uint32)cur_env->rlimit + PAGE_SIZE; va < USER_HEAP_MAX; va += PAGE_SIZE) //searching for enough space with FF
+		{
+			if (sys_is_user_page_taken(env_page_directory,va)) // if its taken or not
+			{
+				c = 0;	  // reset the counter
+				continue; // if its taken , continue
+			}
+			c++; // to count the number of back-to-back free pages found
+			if (c == 1)
+				firstPointer = va; // save the address of the first page
+
+			if (c == noOfPages)
+				return firstPointer; // if we got the number we need , no need for more search
+		}
+	}
+	return 0;
+}
+
+
 //2014
 void sys_move_user_mem(uint32 src_virtual_address, uint32 dst_virtual_address, uint32 size)
 {
@@ -703,7 +744,12 @@ uint32 syscall(uint32 syscallno, uint32 a1, uint32 a2, uint32 a3, uint32 a4, uin
 		return  0;
 
 	case SYS_is_user_page_taken:
-		return  (uint32)sys_is_user_page_taken((volatile uint32 *)a1, (uint32)a2,(bool *)a3);
+		return  (uint32)sys_is_user_page_taken((volatile uint32 *)a1, (uint32)a2);
+
+	case SYS_is_user_page_first:
+		return  (uint32)sys_is_user_page_first((volatile uint32 *)a1, (uint32)a2);
+	case SYS_user_get_free_pages:
+		return sys_user_get_free_pages((volatile uint32 *)a1,a2);;
 
 	case NSYSCALLS:
 		return 	-E_INVAL;

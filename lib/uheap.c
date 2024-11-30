@@ -1,6 +1,6 @@
 #include <inc/lib.h>
 #define PTR_FIRST 0x200 // if set then it's the first pointer
-#define PTR_TAKEN 0x400 // if set then it's the first pointer
+#define PTR_TAKEN 0x400 // if set then it's taken
 #define IS_FIRST_PTR(PG_TABLE_ENT) (((PG_TABLE_ENT) & PTR_FIRST) == PTR_FIRST)
 #define IS_TAKEN(PG_TABLE_ENT) (((PG_TABLE_ENT) & PTR_TAKEN) == PTR_TAKEN)
 
@@ -29,37 +29,19 @@ void* malloc(uint32 size)
 	// if its less or equal to 2KB , then refer it to the block allocator
 	if (size+8 <= DYN_ALLOC_MAX_BLOCK_SIZE)
 		return alloc_block_FF(size);
-	uint32 * ptr_page_table;
-	uint32 firstPointer;
-	if (sys_isUHeapPlacementStrategyFIRSTFIT())
-	{
-		
-		uint32 noOfPages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
-		uint32 c = 0;
-		bool *f=NULL;
-		for (uint32 va = (uint32)(myEnv->rlimit) + PAGE_SIZE; va < USER_HEAP_MAX; va += PAGE_SIZE) //searching for enough space with FF
-		{
-			if (sys_is_user_page_taken((myEnv->env_page_directory),va,f)) // if its taken or not
-			{
-				c = 0;	  // reset the counter
-				continue; // if its taken , continue
-			}
-			c++; // to count the number of back-to-back free pages found
-			if (c == 1)
-				firstPointer = va; // save the address of the first page
 
-			if (c == noOfPages)
-				break; // if we got the number we need , no need for more search
-		}
-		if (c == noOfPages) // if we found the number of pages needed , call the system call
-		{
-			sys_allocate_user_mem(firstPointer,size);
-			return (void* )firstPointer;
-		}
+	uint32 firstPointer;
+	uint32 noOfPages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
+	// check of heap placement strategy done inside this syscall
+	firstPointer = sys_user_get_free_pages((myEnv->env_page_directory), noOfPages);
+
+	if (firstPointer) // if we found the number of pages needed , call the system call
+	{
+		sys_allocate_user_mem(firstPointer,size);
+		return (void* )firstPointer;
 	}
 
 	return NULL;
-
 }
 
 //=================================
@@ -68,7 +50,8 @@ void* malloc(uint32 size)
 void free(void* virtual_address)
 {
 	void *va = virtual_address;
-	if (va < sbrk(0) && (uint32 *)va > myEnv->da_Start)
+	if((uint32)va < USER_HEAP_START || (uint32)va > USER_HEAP_MAX || va==sbrk(0)) return;
+	if (va < sbrk(0) && (uint32 *)va >= myEnv->da_Start)
 	{
 		free_block(va);
 		return;
@@ -81,7 +64,7 @@ void free(void* virtual_address)
 	uint32 noOfPages=1;
 	for(uint32 iter=(uint32)va+ PAGE_SIZE;iter<USER_HEAP_MAX;iter+=PAGE_SIZE)
 	{
-		if (IS_FIRST_PTR(myEnv->env_page_directory[PDX(va)]) | !IS_TAKEN(myEnv->env_page_directory[PDX(va)])) // if its taken or not
+		if (sys_is_user_page_first((myEnv->env_page_directory),iter) | !sys_is_user_page_taken((myEnv->env_page_directory),iter)) // if its taken or first
 		{
 			break;
 		}
@@ -100,16 +83,14 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable)
 	//DON'T CHANGE THIS CODE========================================
 	if (size == 0) return NULL ;
 	//==============================================================
-	size = ROUNDUP(size,PAGE_SIZE);
+	size = ROUNDUP(size,PAGE_SIZE) ;
 	void *va = malloc(size);
 	if(!va) return NULL;
 	int sharedId = sys_createSharedObject(sharedVarName, size, isWritable,va);
-	if(sharedId == E_SHARED_MEM_EXISTS || sharedId == E_NO_SHARE)
-	{
-		/* free(va); */
-		return NULL;
-	}
-	return va;
+	if(sharedId != E_SHARED_MEM_EXISTS && sharedId != E_NO_SHARE) 
+		return va;
+	free(va);
+	return NULL;
 }
 
 //========================================
@@ -117,12 +98,17 @@ void* smalloc(char *sharedVarName, uint32 size, uint8 isWritable)
 //========================================
 void* sget(int32 ownerEnvID, char *sharedVarName)
 {
-	//TODO: [PROJECT'24.MS2 - #20] [4] SHARED MEMORY [USER SIDE] - sget()
-	// Write your code here, remove the panic and write your code
-	panic("sget() is not implemented yet...!!");
+	int size = sys_getSizeOfSharedObject(ownerEnvID, sharedVarName);
+	if(size == 0) return NULL;
+
+	void* ptr = malloc(size);
+	if (ptr == NULL) return NULL;
+
+	int ret = sys_getSharedObject(ownerEnvID, sharedVarName, ptr);
+	if (ret != E_SHARED_MEM_NOT_EXISTS) return ptr;
+	free(ptr);
 	return NULL;
 }
-
 
 //==================================================================================//
 //============================== BONUS FUNCTIONS ===================================//
@@ -141,9 +127,7 @@ void* sget(int32 ownerEnvID, char *sharedVarName)
 
 void sfree(void* virtual_address)
 {
-	//TODO: [PROJECT'24.MS2 - BONUS#4] [4] SHARED MEMORY [USER SIDE] - sfree()
-	// Write your code here, remove the panic and write your code
-	panic("sfree() is not implemented yet...!!");
+	sys_freeSharedObject(0,virtual_address);
 }
 
 

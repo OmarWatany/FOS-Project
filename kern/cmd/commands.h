@@ -43,6 +43,7 @@ int command_run_program(int argc, char **argv);
 int command_readmem_k(int number_of_arguments, char **arguments);
 int command_writemem_k(int number_of_arguments, char **arguments);
 int command_kill_program(int number_of_arguments, char **arguments);
+int command_tst_krealloc(int number_of_arguments, char **arguments);
 
 int commnad_load_env(int number_of_arguments, char **arguments);
 int command_run_all(int number_of_arguments, char **arguments);

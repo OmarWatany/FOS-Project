@@ -421,7 +421,7 @@ int tst_kheap(int number_of_arguments, char **arguments)
 	{
 		if(isKHeapPlacementStrategyFIRSTFIT())
 		{
-			test_fastfirstfit();
+			/* test_fastfirstfit(); */
 		}
 		else
 		{

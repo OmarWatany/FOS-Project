@@ -28,6 +28,8 @@ struct Share
 	//sharing permissions (0: ReadOnly, 1:Writable)
 	uint8 isWritable;
 
+	void *phva;
+
 	//to store frames to be shared
 	struct FrameInfo** framesStorage;
 
