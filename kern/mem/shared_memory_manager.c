@@ -101,9 +101,10 @@ struct Share* create_share(int32 ownerID, char* shareName, uint32 size, uint8 is
 //	b) else: NULL
 struct Share* get_share(int32 ownerID, char* name)
 {
-	acquire_spinlock(&AllShares.shareslock);
-
-	struct Share *iter;
+	struct Share *iter = NULL;
+#if USE_KHEAP
+	if(!holding_spinlock(&AllShares.shareslock))
+		acquire_spinlock(&AllShares.shareslock);
 	LIST_FOREACH(iter,&AllShares.shares_list)
 	{
 		if(iter->ownerID == ownerID && !strcmp(name,iter->name))
@@ -112,7 +113,9 @@ struct Share* get_share(int32 ownerID, char* name)
 			return iter;
 		}
 	}
-	release_spinlock(&AllShares.shareslock);
+	if(holding_spinlock(&AllShares.shareslock))
+		release_spinlock(&AllShares.shareslock);
+#endif //USE_KHEAP
 	return NULL;
 }
 
@@ -130,9 +133,13 @@ int createSharedObject(int32 ownerID, char* shareName, uint32 size, uint8 isWrit
 	struct Share * shared = create_share(ownerID, shareName, size, isWritable);
 	if(!shared) return E_NO_SHARE;
 
-	acquire_spinlock(&AllShares.shareslock);
+#if USE_KHEAP
+	if(!holding_spinlock(&AllShares.shareslock))
+		acquire_spinlock(&AllShares.shareslock);
 	LIST_INSERT_TAIL(&AllShares.shares_list,shared);
-	release_spinlock(&AllShares.shareslock);
+	if(holding_spinlock(&AllShares.shareslock))
+		release_spinlock(&AllShares.shareslock);
+#endif // USE_KHEAP
 
 	// allocate space on kernel heap
 	void * sha = kmalloc(size);
@@ -206,7 +213,9 @@ int getSharedObject(int32 ownerID, char* shareName, void* virtual_address)
 //it should free its framesStorage and the share object itself
 void free_share(struct Share* ptrShare)
 {
+#if USE_KHEAP
 	LIST_REMOVE(&AllShares.shares_list,ptrShare);
+#endif // USE_KHEAP
 	kfree(ptrShare->phva);
 	kfree(ptrShare->framesStorage);
 	kfree(ptrShare);
@@ -217,23 +226,28 @@ void free_share(struct Share* ptrShare)
 int freeSharedObject(int32 sharedObjectID, void *startVA)
 {
 	struct Env* myenv = get_cpu_proc(); //The calling environment
-	acquire_spinlock(&AllShares.shareslock);
 
 	uint32 *ptr_page_table = NULL;
 	struct FrameInfo *ptr_frame_info = get_frame_info(myenv->env_page_directory, (uint32)startVA, &ptr_page_table);
 	if (!ptr_frame_info) return 0;
 
-	struct Share *iter;
+	struct Share *iter = NULL;
+#if USE_KHEAP
+	if(!holding_spinlock(&AllShares.shareslock))
+		acquire_spinlock(&AllShares.shareslock);
 	LIST_FOREACH(iter,&AllShares.shares_list)
 	{
 		if(iter->framesStorage[0] == ptr_frame_info)
 		{
-			release_spinlock(&AllShares.shareslock);
+			if(holding_spinlock(&AllShares.shareslock))
+				release_spinlock(&AllShares.shareslock);
 			goto FOUND_SHARED;
 		}
 	}
-	release_spinlock(&AllShares.shareslock);
+	if(holding_spinlock(&AllShares.shareslock))
+		release_spinlock(&AllShares.shareslock);
 	return 0;
+#endif // USE_KHEAP
 
 FOUND_SHARED:
 

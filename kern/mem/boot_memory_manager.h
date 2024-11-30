@@ -41,6 +41,7 @@ void* 	boot_allocate_space(uint32 size, uint32 align);
 void 	initialize_kernel_VM();
 void 	initialize_paging();
 void	detect_memory();
+void 	sharing_init();
 void 	turn_on_paging();
 void	setup_listing_to_all_page_tables_entries();
 
