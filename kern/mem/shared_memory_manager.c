@@ -262,9 +262,9 @@ FOUND_SHARED:
 		return 0;
 	}
 
+	free_user_mem(myenv, (uint32)startVA, iter->size);
 	uint32 *ptr_page_table2 = NULL;
 	struct FrameInfo *table_FrameInfo = get_frame_info(myenv->env_page_directory, (uint32)ptr_page_table, &ptr_page_table2);
-	free_user_mem(myenv, (uint32)startVA, iter->size);
 	kfree(ptr_page_table);
 
 	// if page table empty free it;
