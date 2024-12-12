@@ -1,28 +1,29 @@
 // User-level Semaphore
 
 #include "inc/lib.h"
-
+// enqueue
+// dequeue
+// getCurproccess
+//insert ready
+//init queue
+//todo
 struct semaphore create_semaphore(char *semaphoreName, uint32 value)
 {
 	
 	struct __semdata *semdata={0};
-	//todo save the semaphore in the env in some way
 	semdata->count=value;
 	strcpy(semdata->name,semaphoreName);
 	semdata->lock=0;
-	LIST_INIT(&(semdata->queue));
+	// sys_init_queue((semdata->queue))
 	struct semaphore s={
 		semdata
 	};
-	int id=sys_createSharedObject(semaphoreName,sizeof(struct semaphore),1,&s);
+	smalloc(semaphoreName,sizeof(struct semaphore),1);
 	return s;
 }
 struct semaphore get_semaphore(int32 ownerEnvID, char* semaphoreName)
 {
-	//TODO: [PROJECT'24.MS3 - #03] [2] USER-LEVEL SEMAPHORE - get_semaphore
-	//COMMENT THE FOLLOWING LINE BEFORE START CODING
-	panic("get_semaphore is not implemented yet");
-	//Your Code is Here...
+	return *((struct semaphore *)(sget(ownerEnvID,semaphoreName))); 
 }
 
 void wait_semaphore(struct semaphore sem)
@@ -31,10 +32,10 @@ void wait_semaphore(struct semaphore sem)
 	while(xchg(&(sem.semdata->lock),keyw)!=0);
 	if(--(sem.semdata->count)<0)
 	{
-		// LIST_INSERT_TAIL(&(sem.semdata->queue),myEnv);
-		// enqueue(&(sem.semdata->queue),myEnv);
+		// sys_enqueue(&(sem.semdata->queue),myEnv);
 		sem.semdata->lock=0;
-		//todo block the env
+		// struct Env env= sys_get_cpu_proccess();
+		// env->env_status=ENV_BLOCKED;
 	}
 	sem.semdata->lock=0;
 }
