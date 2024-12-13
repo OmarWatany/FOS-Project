@@ -324,3 +324,28 @@ uint32 sys_user_get_free_pages(volatile uint32 * env_page_directory,uint32 noOfP
 {
 	return syscall(SYS_user_get_free_pages, (uint32)env_page_directory, noOfPages,0, 0, 0);
 }
+
+void sys_enqueue(struct Env_Queue* queue, struct Env* env)
+{
+	syscall(SYS_enqueue, (uint32) queue,(uint32) env ,0, 0, 0);
+}
+
+struct Env* sys_dequeue(struct Env_Queue* queue)
+{	
+	return (struct Env* ) syscall(SYS_dequeue, (uint32) queue,0 ,0, 0, 0);
+}
+
+void sys_init_queue(struct Env_Queue* queue)
+{	
+	syscall(SYS_init_queue, (uint32) queue,0 ,0, 0, 0);
+}
+
+struct Env* sys_get_cpu_proc()
+{	
+	return (struct Env* )syscall(SYS_get_current_proc,0 ,0 ,0, 0, 0);
+}
+
+void sys_sched_insert_ready(struct Env* env)
+{	
+	syscall(SYS_insert_ready, (uint32) env,0 ,0, 0, 0);
+}

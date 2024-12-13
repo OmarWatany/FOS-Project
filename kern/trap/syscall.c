@@ -550,7 +550,30 @@ void sys_bypassPageFault(uint8 instrLength)
 	bypassInstrLength = instrLength;
 }
 
+void sys_enqueue(struct Env_Queue* queue, struct Env* env)
+{
+	enqueue(queue,env);
+}
 
+struct Env* sys_dequeue(struct Env_Queue* queue)
+{
+	return dequeue(queue);
+}
+
+void sys_init_queue(struct Env_Queue* queue)
+{
+	init_queue(queue);
+}
+
+struct Env* sys_get_cpu_proc()
+{
+	return get_cpu_proc();
+}
+
+void sys_sched_insert_ready(struct Env* env)
+{
+	sched_insert_ready(env);
+}
 /**************************************************************************/
 /************************* SYSTEM CALLS HANDLER ***************************/
 /**************************************************************************/
@@ -565,8 +588,6 @@ uint32 syscall(uint32 syscallno, uint32 a1, uint32 a2, uint32 a3, uint32 a4, uin
 	// Return any appropriate return value.
 	switch(syscallno)
 	{
-	//TODO: [PROJECT'24.MS1 - #02] [2] SYSTEM CALLS - Add suitable code here
-
 	//======================================================================
 	case SYS_cputs:
 		sys_cputs((const char*)a1,a2,(uint8)a3);
@@ -748,8 +769,29 @@ uint32 syscall(uint32 syscallno, uint32 a1, uint32 a2, uint32 a3, uint32 a4, uin
 
 	case SYS_is_user_page_first:
 		return  (uint32)sys_is_user_page_first((volatile uint32 *)a1, (uint32)a2);
+
 	case SYS_user_get_free_pages:
-		return sys_user_get_free_pages((volatile uint32 *)a1,a2);;
+		return sys_user_get_free_pages((volatile uint32 *)a1,a2);
+
+	case SYS_enqueue:
+		sys_enqueue((struct Env_Queue* )a1, (struct Env*) a2);
+		return 0; 
+
+	case SYS_dequeue:
+		return (uint32) sys_dequeue((struct Env_Queue*) a1);
+
+	case SYS_init_queue:
+		sys_init_queue((struct Env_Queue*) a1);
+		return 0;
+
+	case SYS_get_current_proc:
+		return (uint32) sys_get_cpu_proc();
+
+	case SYS_insert_ready:
+		sys_sched_insert_ready((struct Env*) a1);
+		return 0;
+
+
 
 	case NSYSCALLS:
 		return 	-E_INVAL;

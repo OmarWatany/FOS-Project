@@ -54,6 +54,11 @@ enum
 	SYS_is_user_page_taken,
 	SYS_is_user_page_first,
 	SYS_user_get_free_pages,
+	SYS_init_queue,
+	SYS_enqueue,
+	SYS_dequeue,
+	SYS_get_current_proc,
+	SYS_insert_ready,
 
 	//=====================================================================
 	NSYSCALLS
