@@ -5,6 +5,7 @@
 
 extern void _main(int argc, char **argv);
 
+volatile bool printStats;
 volatile struct Env *myEnv = NULL;
 volatile bool printStats = 1;
 
