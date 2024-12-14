@@ -572,7 +572,9 @@ struct Env* sys_get_cpu_proc()
 
 void sys_sched_insert_ready(struct Env* env)
 {
+	acquire_spinlock(&ProcessQueues.qlock);
 	sched_insert_ready(env);
+	release_spinlock(&ProcessQueues.qlock);
 }
 /**************************************************************************/
 /************************* SYSTEM CALLS HANDLER ***************************/
