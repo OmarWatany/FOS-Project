@@ -553,6 +553,10 @@ void sys_bypassPageFault(uint8 instrLength)
 void sys_enqueue(struct Env_Queue* queue, struct Env* env)
 {
 	enqueue(queue,env);
+	env->env_status = ENV_BLOCKED; 
+	acquire_spinlock(&ProcessQueues.qlock);
+	sched();
+	release_spinlock(&ProcessQueues.qlock);
 }
 
 struct Env* sys_dequeue(struct Env_Queue* queue)
