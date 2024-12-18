@@ -42,7 +42,6 @@ unsigned int _ModifiedBufferLength;
 //2018 Percentage of the pages to be removed from the WS [either for scarce RAM or Full WS]
 #define DEFAULT_PERCENT_OF_PAGE_WS_TO_REMOVE	10	// 10% of the loaded pages is required to be removed
 
-//TODO: [PROJECT'24.MS1 - #00 GIVENS] [4] LOCKS - ENV STAUS Constants
 // Values of env_status in struct Env
 #define ENV_FREE		0
 #define ENV_READY		1
@@ -185,6 +184,11 @@ struct Env {
 	uint32 nPageIn, nPageOut, nNewPageAdded;
 	uint32 nClocks ;
 
+
+	//================
+	/*SEMAPHORES*/
+	//================
+	
 };
 
 #define PRIORITY_LOW    		1
