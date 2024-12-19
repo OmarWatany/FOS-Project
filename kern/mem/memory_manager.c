@@ -398,7 +398,7 @@ int map_frame(uint32 *ptr_page_directory, struct FrameInfo *ptr_frame_info, uint
 	uint32 pte_available_bits = ptr_page_table[PTX(virtual_address)] & PERM_AVAILABLE;
 	ptr_page_table[PTX(virtual_address)] = CONSTRUCT_ENTRY(physical_address , pte_available_bits | perm | PERM_PRESENT);
 	/*********************************************************************************/
-
+	ptr_frame_info->va=virtual_address;
 	return 0;
 }
 
@@ -460,7 +460,7 @@ void unmap_frame(uint32 *ptr_page_directory, uint32 virtual_address)
 		if (ptr_frame_info->isBuffered && !CHECK_IF_KERNEL_ADDRESS((uint32)virtual_address))
 			cprintf("WARNING: Freeing BUFFERED frame at va %x!!!\n", virtual_address) ;
 		decrement_references(ptr_frame_info);
-
+		ptr_frame_info->va=0;
 		/*********************************************************************************/
 		/*NEW'23 el7:)
 		 * [DONE] unmap_frame(): KEEP THE VALUES OF THE AVAILABLE BITS*/
