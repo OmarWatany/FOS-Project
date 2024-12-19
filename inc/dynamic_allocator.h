@@ -26,7 +26,6 @@ enum
 };
 
 //=============================================================================
-//TODO: [PROJECT'24.MS1 - #00 GIVENS] [3] DYNAMIC ALLOCATOR - data structures
 struct BlockElement
 {
 	LIST_ENTRY(BlockElement) prev_next_info;	/* linked list links */
@@ -45,7 +44,6 @@ int initialize_kheap_dynamic_allocator(uint32 daStart, uint32 initSizeToAllocate
 void initialize_uheap_dynamic_allocator(struct Env* env, uint32 daStart, uint32 daLimit);
 
 //=============================================================================
-//TODO: [PROJECT'24.MS1 - #00 GIVENS] [3] DYNAMIC ALLOCATOR - helper functions
 __inline__ uint32 get_block_size(void* va);
 __inline__ int8 is_free_block(void* va);
 void print_blocks_list(struct MemBlock_LIST list);
