@@ -79,6 +79,7 @@ struct Command commands[] =
 		/* COMMANDS WITH THREE ARGUMENTS */
 		//********************************//
 		{ "rub", "reads block of bytes from specific location in given environment" ,command_readuserblock, 3},
+		{ "schedPRIRR", "switch the scheduler to Priority RR with given #priorities, quantum and starvation", command_sch_PRIRR, 3},
 		//TODO: [PROJECT'24.MS3 - #07] [3] PRIORITY RR Scheduler - initialize command
 
 		//**************************************//
@@ -741,6 +742,17 @@ int command_sch_BSD(int number_of_arguments, char **arguments)
 	sched_init_BSD(numOfLevels, quantum);
 
 	cprintf("Scheduler is now set to BSD with %d levels & quantum = %d\n", numOfLevels, quantum);
+	cprintf("\n");
+	return 0;
+}
+int command_sch_PRIRR(int number_of_arguments, char **arguments)
+{
+	uint8 priorities = strtol(arguments[1], NULL, 10);
+	uint8 quantum = strtol(arguments[2], NULL, 10);
+	uint32 starvThresh = strtol(arguments[3], NULL, 10);
+
+	sched_init_PRIRR(priorities, quantum,starvThresh);
+	cprintf("Scheduler is now set to Priority RR with %d priorities , quantum = %d & starvation threshold = %u\n", priorities, quantum, starvThresh);
 	cprintf("\n");
 	return 0;
 }

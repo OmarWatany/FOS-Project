@@ -116,6 +116,8 @@ struct Env* sys_dequeue(struct Env_Queue* queue);
 void sys_init_queue(struct Env_Queue* queue);
 struct Env* sys_get_cpu_proc();
 void sys_sched_insert_ready(struct Env* env);
+void sys_env_set_priority(int32 envId,int priority);
+
 
 
 /* concurrency.c */

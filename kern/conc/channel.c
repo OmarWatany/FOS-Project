@@ -65,7 +65,7 @@ void wakeup_one(struct Channel *chan)
 		env->env_status = ENV_READY;
 
 		// Insert it into the ready queue
-		sched_insert_ready0(env);
+		sched_insert_ready(env);
 	}
 	else cprintf("No processes to wake up\n");
 	release_spinlock(&ProcessQueues.qlock);
@@ -91,7 +91,7 @@ void wakeup_all(struct Channel *chan)
 		env->env_status = ENV_READY;
 
 		// Insert it into the ready queue
-		sched_insert_ready0(env);
+		sched_insert_ready(env);
 	}
 	release_spinlock(&ProcessQueues.qlock);
 }
