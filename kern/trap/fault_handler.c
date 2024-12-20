@@ -311,27 +311,19 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 
 		// Remove the victim page
 		uint32 victim_va = victim->virtual_address;
+		uint32 * ptr_page_table;
 		int perms = pt_get_page_permissions(faulted_env->env_page_directory, victim->virtual_address);
+		struct FrameInfo* victim_frame = get_frame_info(faulted_env->env_page_directory, victim_va, &ptr_page_table);
 		if (perms & PERM_MODIFIED)
 		{
 			// Write the modified page to disk
-			struct FrameInfo* victim_frame = get_frame_info(faulted_env->env_page_directory, victim_va, NULL);
-			int update_ret = pf_update_env_page(faulted_env, victim_va, victim_frame);
-			if (update_ret != 0)
+			if (pf_update_env_page(faulted_env, victim_va, victim_frame) != 0)
 			{
 				env_exit();
 				return;
 			}
 		}
-		unmap_frame(faulted_env->env_page_directory, victim_va);
-		struct FrameInfo* frame_info;
-		int ret = allocate_frame(&frame_info);
-		if (ret == E_NO_MEM)
-		{
-			env_exit();
-			return;
-		}
-		map_frame(faulted_env->env_page_directory, frame_info, fault_va, PERM_WRITEABLE | PERM_USER);
+		map_frame(faulted_env->env_page_directory, victim_frame, fault_va, PERM_WRITEABLE | PERM_USER);
 	}
 }
 
