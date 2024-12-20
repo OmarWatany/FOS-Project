@@ -1,0 +1,8 @@
+completness level
+[ ] -> . -> x -> X
+
+# for initialization of sched
+
+[x] fos_scheduler_PRIRR(...)
+  - [ ] do any initialization ??!
+[x] clock_interrupt_handler()

@@ -246,19 +246,19 @@ void sched_init_BSD(uint8 numOfLevels, uint8 quantum)
 //======================================
 void sched_init_PRIRR(uint8 numOfPriorities, uint8 quantum, uint32 starvThresh)
 {
-	//TODO: [PROJECT'24.MS3 - #07] [3] PRIORITY RR Scheduler - sched_init_PRIRR
-	//Your code is here
-	//Comment the following line
-	panic("Not implemented yet");
-
-
-
-
-
-
-
-
-
+	num_of_ready_queues = numOfPriorities;
+	starvThresh = starvThresh;
+	sched_delete_ready_queues();
+#if USE_KHEAP
+	ProcessQueues.env_ready_queues = kmalloc(num_of_ready_queues*sizeof(struct Env_Queue));
+	quantums = kmalloc(num_of_ready_queues * sizeof(uint8)) ;
+	for(uint8 i = 0; i < num_of_ready_queues; i++)
+	{
+		init_queue(&(ProcessQueues.env_ready_queues[i]));
+		quantums[i] = quantum;
+	}
+#endif
+	kclock_set_quantum(quantum);
 	//=========================================
 	//DON'T CHANGE THESE LINES=================
 	uint16 cnt0 = kclock_read_cnt0_latch() ; //read after write to ensure it's set to the desired value
@@ -347,10 +347,30 @@ struct Env* fos_scheduler_PRIRR()
 	if(!holding_spinlock(&ProcessQueues.qlock))
 		panic("fos_scheduler_PRIRR: q.lock is not held by this CPU while it's expected to be.");
 	/****************************************************************************************/
-	//TODO: [PROJECT'24.MS3 - #08] [3] PRIORITY RR Scheduler - fos_scheduler_PRIRR
-	//Your code is here
-	//Comment the following line
-	panic("Not implemented yet");
+
+	struct Env *next_env = NULL;
+	struct Env *cur_env = get_cpu_proc();
+	//If the curenv is still exist, then insert it again in the ready queue
+	if (cur_env != NULL)
+	{
+		cur_env->env_status = ENV_READY ;
+		enqueue(&(ProcessQueues.env_ready_queues[cur_env->priority]), cur_env);
+	}
+
+	int8 cur_priority = 0;
+	for(; cur_priority < num_of_ready_queues ; cur_priority++)
+	{
+		// if queue[i] not empty dequeue from it
+		if(queue_size(&(ProcessQueues.env_ready_queues[cur_priority])))
+			break;
+	}
+
+	if( cur_priority >= num_of_ready_queues ) return NULL;
+
+	//Pick the next environment from the ready queue
+	next_env = dequeue(&(ProcessQueues.env_ready_queues[cur_priority]));
+	kclock_set_quantum(quantums[cur_priority]);
+	return next_env;
 }
 
 //========================================
@@ -361,13 +381,14 @@ void clock_interrupt_handler(struct Trapframe* tf)
 {
 	if (isSchedMethodPRIRR())
 	{
-		//TODO: [PROJECT'24.MS3 - #09] [3] PRIORITY RR Scheduler - clock_interrupt_handler
-		//Your code is here
-		//Comment the following line
-		panic("Not implemented yet");
+		struct Env* cur_env = get_cpu_proc();
+		if(ticks >= starvThresh && cur_env && cur_env->priority > 0)
+		{
+			env_set_priority(cur_env->env_id,cur_env->priority-1);
+			ticks = 0; // NOTE : I don't know if i should do this. it needs more testing
+			// NOTE : this funcion needs more testing
+		}
 	}
-
-
 
 	/********DON'T CHANGE THESE LINES***********/
 	ticks++ ;

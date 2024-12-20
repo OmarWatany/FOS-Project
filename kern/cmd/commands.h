@@ -91,6 +91,7 @@ int command_get_modified_buffer_length(int number_of_arguments, char **arguments
 int command_sch_RR(int number_of_arguments, char **arguments);
 int command_sch_MLFQ(int number_of_arguments, char **arguments);
 int command_sch_BSD(int number_of_arguments, char **arguments);
+int command_sch_PRIRR(int number_of_arguments, char **arguments);
 int command_print_sch_method(int number_of_arguments, char **arguments);
 int command_sch_test(int number_of_arguments, char **arguments);
 
