@@ -272,12 +272,14 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 	}
 	else
 	{
+		env_page_ws_print(faulted_env);
 		int N = page_WS_max_sweeps;
 		struct WorkingSetElement* victim = faulted_env->page_last_WS_element;
-
+		int perms;
+		int absN = (N < 0) ? -N : N;
 		while (1)
 		{
-			int perms = pt_get_page_permissions(faulted_env->env_page_directory, victim->virtual_address);
+			perms = pt_get_page_permissions(faulted_env->env_page_directory, victim->virtual_address);
 			if (perms & PERM_USED)
 			{
 				pt_set_page_permissions(faulted_env->env_page_directory, victim->virtual_address, 0, PERM_USED);
@@ -285,7 +287,6 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 			}
 			else
 			{
-				int absN = (N < 0) ? -N : N;
 				victim->sweeps_counter++;
 				if (N < 0 && (perms & PERM_MODIFIED))
 				{
@@ -302,17 +303,13 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 					}
 				}
 			}
-			victim = LIST_NEXT(victim);
-			if (victim == NULL)
-			{
-				victim = LIST_FIRST(&(faulted_env->page_WS_list));
-			}
+			victim = (LIST_NEXT(victim)!=LIST_LAST(&(faulted_env->page_WS_list))) ? LIST_NEXT(victim) : LIST_FIRST(&(faulted_env->page_WS_list)); //I dont think we can replace the stack page
 		}
 
 		// Remove the victim page
 		uint32 victim_va = victim->virtual_address;
 		uint32 * ptr_page_table;
-		int perms = pt_get_page_permissions(faulted_env->env_page_directory, victim->virtual_address);
+		perms = pt_get_page_permissions(faulted_env->env_page_directory, victim->virtual_address);
 		struct FrameInfo* victim_frame = get_frame_info(faulted_env->env_page_directory, victim_va, &ptr_page_table);
 		if (perms & PERM_MODIFIED)
 		{
@@ -323,7 +320,11 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 				return;
 			}
 		}
+		faulted_env->page_last_WS_element = (LIST_NEXT(victim)!=LIST_LAST(&(faulted_env->page_WS_list))) ? LIST_NEXT(victim) : LIST_FIRST(&(faulted_env->page_WS_list)); //I dont think we can replace the stack page
 		map_frame(faulted_env->env_page_directory, victim_frame, fault_va, PERM_WRITEABLE | PERM_USER);
+		victim->sweeps_counter=0;
+		victim->virtual_address=fault_va;
+		pt_set_page_permissions(faulted_env->env_page_directory, fault_va,perms | PERM_USED,0);
 	}
 }
 
