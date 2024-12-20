@@ -272,11 +272,66 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 	}
 	else
 	{
-		cprintf("REPLACEMENT=========================WS Size = %d\n", wsSize );
-		//refer to the project presentation and documentation for details
-		//TODO: [PROJECT'24.MS3] [2] FAULT HANDLER II - Replacement
-		// Write your code here, remove the panic and write your code
-		panic("page_fault_handler() Replacement is not implemented yet...!!");
+		int N = page_WS_max_sweeps;
+		struct WorkingSetElement* victim = faulted_env->page_last_WS_element;
+
+		while (1)
+		{
+			int perms = pt_get_page_permissions(faulted_env->env_page_directory, victim->virtual_address);
+			if (perms & PERM_USED)
+			{
+				pt_set_page_permissions(faulted_env->env_page_directory, victim->virtual_address, 0, PERM_USED);
+				victim->sweeps_counter = 0;
+			}
+			else
+			{
+				int absN = (N < 0) ? -N : N;
+				victim->sweeps_counter++;
+				if (N < 0 && (perms & PERM_MODIFIED))
+				{
+					if (victim->sweeps_counter >= absN + 1)
+					{
+						break;
+					}
+				}
+				else
+				{
+					if (victim->sweeps_counter >= absN)
+					{
+						break;
+					}
+				}
+			}
+			victim = LIST_NEXT(victim);
+			if (victim == NULL)
+			{
+				victim = LIST_FIRST(&(faulted_env->page_WS_list));
+			}
+		}
+
+		// Remove the victim page
+		uint32 victim_va = victim->virtual_address;
+		int perms = pt_get_page_permissions(faulted_env->env_page_directory, victim->virtual_address);
+		if (perms & PERM_MODIFIED)
+		{
+			// Write the modified page to disk
+			struct FrameInfo* victim_frame = get_frame_info(faulted_env->env_page_directory, victim_va, NULL);
+			int update_ret = pf_update_env_page(faulted_env, victim_va, victim_frame);
+			if (update_ret != 0)
+			{
+				env_exit();
+				return;
+			}
+		}
+		unmap_frame(faulted_env->env_page_directory, victim_va);
+		struct FrameInfo* frame_info;
+		int ret = allocate_frame(&frame_info);
+		if (ret == E_NO_MEM)
+		{
+			env_exit();
+			return;
+		}
+		map_frame(faulted_env->env_page_directory, frame_info, fault_va, PERM_WRITEABLE | PERM_USER);
 	}
 }
 
