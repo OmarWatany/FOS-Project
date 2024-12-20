@@ -1,8 +1,0 @@
-{
-    "files.associations": {
-        "*.embeddedhtml": "html",
-        "*.py": "python",
-        "user_environment.h": "c",
-        "memory_manager.h": "c"
-    }
-}
