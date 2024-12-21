@@ -272,8 +272,6 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 	}
 	else
 	{
-		cprintf("FAULTED VA = %x\n", fault_va);
-		env_page_ws_print(faulted_env);
 		int N = page_WS_max_sweeps;
 		struct WorkingSetElement* victim = faulted_env->page_last_WS_element;
 		int perms;
@@ -333,7 +331,6 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 		}
 		map_frame(faulted_env->env_page_directory, p, fault_va, PERM_WRITEABLE | PERM_USER);
 		pf_read_env_page(faulted_env,(void *)fault_va);
-		env_page_ws_print(faulted_env);
 	}
 }
 
