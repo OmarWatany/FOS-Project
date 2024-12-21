@@ -19,6 +19,7 @@
 #include "../mem/kheap.h"
 #include "../mem/memory_manager.h"
 #include "../mem/shared_memory_manager.h"
+#include "inc/memlayout.h"
 
 
 /******************************/
@@ -462,15 +463,59 @@ void env_start(void)
 //
 void env_free(struct Env *e)
 {
-	/*REMOVE THIS LINE BEFORE START CODING*/
-	return;
-	/**************************************/
+#if USE_KHEAP
 
-	//[PROJECT'24.MS3] BONUS [EXIT ENV] env_free
-	// your code is here, remove the panic and write your code
-	panic("env_free() is not implemented yet...!!");
+	// loop on allshares
+	// get first frameinfo for each shared element
+	// get it's va
+	// get current process frameinfo assigned to this va 
+	// if this two frames are the same the free this shared using sfree
+	struct Share *sharedIter = 0;
+	struct FrameInfo *frame = 0;
+	uint32 va = 0 ,*page_table = 0;
+	LIST_FOREACH(sharedIter, &AllShares.shares_list)
+	{
+		va = sharedIter->framesStorage[0]->va;
+		frame = get_frame_info(e->env_page_directory, va, &page_table);
+		if((sharedIter->ownerID == e->env_id) || (frame && frame == sharedIter->framesStorage[0]))
+			freeSharedObject(0, (void*)va);
+	}
 
+	struct WorkingSetElement* wsElement;
+	while (!LIST_EMPTY(&(e->page_WS_list))) {
+		wsElement = LIST_FIRST(&(e->page_WS_list));
+		uint32 virtual_address = wsElement->virtual_address;
+		unmap_frame(e->env_page_directory, virtual_address);
+		LIST_REMOVE(&(e->page_WS_list), wsElement);
+		kfree(wsElement);
+	}
 
+	for (uint32 va = 0; va < USER_TOP; va += PAGE_SIZE * 1024)
+	{
+    uint32* page_table;
+    get_page_table(e->env_page_directory, va, &page_table);
+    if ( page_table )
+    {
+      for (int i = 0; i < 1024; i++)
+      {
+        if (page_table[i] & PERM_PRESENT)
+          unmap_frame(e->env_page_directory, va + i * PAGE_SIZE);
+      }
+      kfree(page_table);
+    }
+	}
+
+	kfree(e->env_page_directory);
+	if (e->kstack != NULL) kfree(e->kstack);
+#else
+	for (int i = 0; i < e->page_WS_max_size; i++) {
+		if (!env_page_ws_is_entry_empty(e, i)) {
+		  uint32 virtual_address = env_page_ws_get_virtual_address(e, i);
+		  unmap_frame(e->env_page_directory, virtual_address);
+		  env_page_ws_clear_entry(e, i);
+		}
+	}
+#endif
 	// [9] remove this program from the page file
 	/*(ALREADY DONE for you)*/
 	pf_free_env(e); /*(ALREADY DONE for you)*/ // (removes all of the program pages from the page file)
