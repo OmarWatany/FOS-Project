@@ -701,21 +701,29 @@ int get_load_average()
 /********* for Priority RR Scheduler *************/
 void env_set_priority(int envID, int priority)
 {
-	//TODO: [PROJECT'24.MS3 - #06] [3] PRIORITY RR Scheduler - env_set_priority
-
-	//Get the process of the given ID
 	struct Env* proc ;
 	envid2env(envID, &proc, 0);
+	assert(proc != NULL);
 
-	//Your code is here
-	//Comment the following line
-	panic("Not implemented yet");
+	// NOTE : don't know if i should do this 
+	// if i returned then it will be in the same position in queue
+	// but if i didn't it will reenqeue it to the end
+	// need more testnig
+	
+	/* if(proc->priority == priority) */
+	/* 	return; */
+
+	proc->priority = priority;
+	if(proc->env_status == ENV_READY)
+	{
+		acquire_spinlock(&ProcessQueues.qlock);
+		sched_remove_ready(proc);
+		sched_insert_ready(proc);
+		release_spinlock(&ProcessQueues.qlock);
+	}
 }
 
 void sched_set_starv_thresh(uint32 starvThresh)
 {
-	//TODO: [PROJECT'24.MS3 - #06] [3] PRIORITY RR Scheduler - sched_set_starv_thresh
-	//Your code is here
-	//Comment the following line
-	panic("Not implemented yet");
+	starvThresh = starvThresh;
 }

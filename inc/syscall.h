@@ -59,6 +59,7 @@ enum
 	SYS_dequeue,
 	SYS_get_current_proc,
 	SYS_insert_ready,
+	SYS_env_set_priority,
 
 	//=====================================================================
 	NSYSCALLS
