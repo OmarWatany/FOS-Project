@@ -63,7 +63,7 @@ int64 ticks;
 int64 timer_ticks() ;
 /********* for BSD Priority Scheduler *************/
 
-uint32 starvThresh;
+uint32 starvThresh_;
 
 void sched_init_RR(uint8 quantum);
 void sched_init_MLFQ(uint8 numOfLevels, uint8 *quantumOfEachLevel);

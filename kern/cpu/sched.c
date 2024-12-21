@@ -247,7 +247,7 @@ void sched_init_BSD(uint8 numOfLevels, uint8 quantum)
 void sched_init_PRIRR(uint8 numOfPriorities, uint8 quantum, uint32 starvThresh)
 {
 	num_of_ready_queues = numOfPriorities;
-	starvThresh = starvThresh;
+	starvThresh_ = starvThresh;
 	sched_delete_ready_queues();
 #if USE_KHEAP
 	ProcessQueues.env_ready_queues = kmalloc(num_of_ready_queues*sizeof(struct Env_Queue));
@@ -382,12 +382,8 @@ void clock_interrupt_handler(struct Trapframe* tf)
 	if (isSchedMethodPRIRR())
 	{
 		struct Env* cur_env = get_cpu_proc();
-		if(ticks >= starvThresh && cur_env && cur_env->priority > 0)
-		{
+		if(ticks >= starvThresh_ && cur_env && cur_env->priority > 0)
 			env_set_priority(cur_env->env_id,cur_env->priority-1);
-			ticks = 0; // NOTE : I don't know if i should do this. it needs more testing
-			// NOTE : this funcion needs more testing
-		}
 	}
 
 	/********DON'T CHANGE THESE LINES***********/

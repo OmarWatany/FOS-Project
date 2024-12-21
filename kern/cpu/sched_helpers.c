@@ -705,11 +705,6 @@ void env_set_priority(int envID, int priority)
 	envid2env(envID, &proc, 0);
 	assert(proc != NULL);
 
-	// NOTE : don't know if i should do this 
-	// if i returned then it will be in the same position in queue
-	// but if i didn't it will reenqeue it to the end
-	// need more testnig
-	
 	/* if(proc->priority == priority) */
 	/* 	return; */
 
@@ -725,5 +720,5 @@ void env_set_priority(int envID, int priority)
 
 void sched_set_starv_thresh(uint32 starvThresh)
 {
-	starvThresh = starvThresh;
+	starvThresh_ = starvThresh;
 }
