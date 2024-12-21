@@ -465,22 +465,6 @@ void env_free(struct Env *e)
 {
 #if USE_KHEAP
 
-	// loop on allshares
-	// get first frameinfo for each shared element
-	// get it's va
-	// get current process frameinfo assigned to this va 
-	// if this two frames are the same the free this shared using sfree
-	struct Share *sharedIter = 0;
-	struct FrameInfo *frame = 0;
-	uint32 va = 0 ,*page_table = 0;
-	LIST_FOREACH(sharedIter, &AllShares.shares_list)
-	{
-		va = sharedIter->framesStorage[0]->va;
-		frame = get_frame_info(e->env_page_directory, va, &page_table);
-		if((sharedIter->ownerID == e->env_id) || (frame && frame == sharedIter->framesStorage[0]))
-			freeSharedObject(0, (void*)va);
-	}
-
 	struct WorkingSetElement* wsElement;
 	while (!LIST_EMPTY(&(e->page_WS_list))) {
 		wsElement = LIST_FIRST(&(e->page_WS_list));
