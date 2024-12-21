@@ -2,5 +2,6 @@
 /bochs.log
 obj/
 '.settings'/
+.cache/
 .settings/language.settings.xml
 .clang-format
