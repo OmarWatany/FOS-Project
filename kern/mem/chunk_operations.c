@@ -162,6 +162,8 @@ void allocate_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 	get_page_table(e->env_page_directory,virtual_address,&ptr_page_table);
 	if(!ptr_page_table) 
 		ptr_page_table=(uint32 *) create_page_table(e->env_page_directory,virtual_address);
+	struct FrameInfo *table_FrameInfo = to_frame_info(kheap_physical_address((uint32)ptr_page_table));
+	table_FrameInfo->references++;
 	//set the first entry's permission
 	ptr_page_table[PTX(virtual_address)]=ptr_page_table[PTX(virtual_address)] | PTR_FIRST | PTR_TAKEN | PERM_WRITEABLE | PERM_USER;
 	uint32 noOfPages = ROUNDUP(size, PAGE_SIZE) / PAGE_SIZE;
@@ -170,6 +172,8 @@ void allocate_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 		get_page_table(e->env_page_directory,va,&ptr_page_table);
 		if(!ptr_page_table) 
 			ptr_page_table=(uint32 *) create_page_table(e->env_page_directory,va);
+		struct FrameInfo *table_FrameInfo = to_frame_info(kheap_physical_address((uint32)ptr_page_table));
+		table_FrameInfo->references++;
 		ptr_page_table[PTX(va)]=ptr_page_table[PTX(va)] | PTR_TAKEN | PERM_WRITEABLE | PERM_USER;
 	}
 
