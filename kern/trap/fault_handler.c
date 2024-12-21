@@ -272,6 +272,7 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 	}
 	else
 	{
+		cprintf("FAULTED VA = %x\n", fault_va);
 		env_page_ws_print(faulted_env);
 		int N = page_WS_max_sweeps;
 		struct WorkingSetElement* victim = faulted_env->page_last_WS_element;
@@ -303,28 +304,40 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 					}
 				}
 			}
-			victim = (LIST_NEXT(victim)!=LIST_LAST(&(faulted_env->page_WS_list))) ? LIST_NEXT(victim) : LIST_FIRST(&(faulted_env->page_WS_list)); //I dont think we can replace the stack page
-		}
+			//Iterating over the WS
+			// if(fault_va >= USTACKBOTTOM && fault_va < USTACKTOP) 
+				// {
+					// cprintf("IN STACK \n\n");
+					// victim = (LIST_NEXT(victim)) ? LIST_NEXT(victim) : LIST_FIRST(&(faulted_env->page_WS_list)); //I dont think we can replace the stack page
+			// }else
+				victim = (LIST_NEXT(victim)!=LIST_LAST(&(faulted_env->page_WS_list))) ? LIST_NEXT(victim) : LIST_FIRST(&(faulted_env->page_WS_list)); //I dont think we can replace the stack page
 
-		// Remove the victim page
+		}
 		uint32 victim_va = victim->virtual_address;
 		uint32 * ptr_page_table;
 		perms = pt_get_page_permissions(faulted_env->env_page_directory, victim->virtual_address);
 		struct FrameInfo* victim_frame = get_frame_info(faulted_env->env_page_directory, victim_va, &ptr_page_table);
-		if (perms & PERM_MODIFIED)
+		//writing to page file if its modified and part of the stack or heap
+		if ((perms & PERM_MODIFIED) && ((fault_va >= USTACKBOTTOM && fault_va < USTACKTOP) || (fault_va >= USER_HEAP_START &&fault_va < USER_HEAP_MAX)))
 		{
-			// Write the modified page to disk
-			if (pf_update_env_page(faulted_env, victim_va, victim_frame) != 0)
-			{
-				env_exit();
-				return;
-			}
+			pf_update_env_page(faulted_env, victim_va, victim_frame);
+			// {
+			// 	env_exit();
+			// 	return;
+			// }
 		}
-		faulted_env->page_last_WS_element = (LIST_NEXT(victim)!=LIST_LAST(&(faulted_env->page_WS_list))) ? LIST_NEXT(victim) : LIST_FIRST(&(faulted_env->page_WS_list)); //I dont think we can replace the stack page
+		// if(fault_va >= USTACKBOTTOM && fault_va < USTACKTOP) 
+			// faulted_env->page_last_WS_element = (LIST_NEXT(victim)) ? LIST_NEXT(victim) : LIST_FIRST(&(faulted_env->page_WS_list)); //I dont think we can replace the stack page
+		// else
+		//moving the page_last_WS_element pointer to maintain the right FIFO order
+			faulted_env->page_last_WS_element = (LIST_NEXT(victim)!=LIST_LAST(&(faulted_env->page_WS_list))) ? LIST_NEXT(victim) : LIST_FIRST(&(faulted_env->page_WS_list)); //I dont think we can replace the stack page
+
+		pf_read_env_page(faulted_env,(void *)victim_va);
 		map_frame(faulted_env->env_page_directory, victim_frame, fault_va, PERM_WRITEABLE | PERM_USER);
-		victim->sweeps_counter=0;
-		victim->virtual_address=fault_va;
-		pt_set_page_permissions(faulted_env->env_page_directory, fault_va,perms | PERM_USED,0);
+		struct WorkingSetElement * new= env_page_ws_list_create_element(faulted_env, fault_va);
+		LIST_INSERT_AFTER(&(faulted_env->page_WS_list),victim,new);
+		env_page_ws_invalidate(faulted_env, victim_va);
+		env_page_ws_print(faulted_env);
 	}
 }
 
