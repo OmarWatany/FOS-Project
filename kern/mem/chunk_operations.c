@@ -191,6 +191,8 @@ void free_user_mem(struct Env* e, uint32 virtual_address, uint32 size)
 		pt_set_page_permissions(e->env_page_directory,va,0,PTR_TAKEN |  PTR_FIRST );
 		unmap_frame(e->env_page_directory,va);
 		pf_remove_env_page(e,va);
+		// if(e->page_last_WS_element->virtual_address==va)
+		// 	e->page_last_WS_element = (LIST_NEXT(e->page_last_WS_element)!=LIST_LAST(&(e->page_WS_list))) ? LIST_NEXT(e->page_last_WS_element) : LIST_FIRST(&(e->page_WS_list)); //I dont think we can replace the stack page
 		env_page_ws_invalidate(e,va); // this lines assumes that all of them are in the working set , which is most probably not true 
 	}
 	//TODO: [PROJECT'24.MS2 - BONUS#3] [3] USER HEAP [KERNEL SIDE] - O(1) free_user_mem
