@@ -332,6 +332,7 @@ void page_fault_handler(struct Env * faulted_env, uint32 fault_va)
 			LIST_INSERT_HEAD(&(faulted_env->page_WS_list),new);
 		}
 		map_frame(faulted_env->env_page_directory, p, fault_va, PERM_WRITEABLE | PERM_USER);
+		pf_read_env_page(faulted_env,(void *)fault_va);
 		env_page_ws_print(faulted_env);
 	}
 }
