@@ -13,5 +13,16 @@ jobs:
     - uses: actions/checkout@v4
     - name: Install BUILD-UTILS
       run:  sudo apt-get -y install build-essential libfl-dev
-    - name: make
-      run: make
+    - name: CREATE /opt/cross DIR
+      run: |
+        sudo mkdir /opt/cross
+        cd /opt/cross
+        sudo wget -q https://github.com/YoussefRaafatNasry/fos-v2/releases/download/toolchain/i386-elf-toolchain-linux.tar.bz2
+        sudo tar xjf i386-elf-toolchain-linux.tar.bz2
+        sudo rm i386-elf-toolchain-linux.tar.bz2
+    - name: MAKE
+      run: |
+        echo $PATH
+        ls -l /opt/cross/bin
+        export PATH="$PATH:/opt/cross/bin"
+        make -j all
